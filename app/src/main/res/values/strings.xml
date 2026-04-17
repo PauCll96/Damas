@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">Damas</string>
+    <string name="game_title">Joc de Dames</string>
+    <string name="turn_red">Torn: Vermell</string>
+    <string name="turn_black">Torn: Negre</string>
+    <string name="winner_red">¡Ha guanyat el jugador VERMELL!</string>
+    <string name="winner_black">¡Ha guanyat el jugador NEGRE!</string>
+    <string name="reset_button">Reiniciar partida</string>
+</resources>
