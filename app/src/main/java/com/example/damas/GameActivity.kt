@@ -13,13 +13,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.damas.ui.theme.DamasTheme
 
-class MainActivity : ComponentActivity() {
+class GameActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -29,20 +31,19 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    // Tema 3: El ViewModel es el dueño del estado
                     val checkersViewModel: CheckersViewModel = viewModel()
-                    GameScreen(checkersViewModel)
+                    GameScreen(
+                        viewModel = checkersViewModel,
+                        onBack = { finish() }
+                    )
                 }
             }
         }
     }
 }
 
-/**
- * Composable STATEFUL: Se comunica con el ViewModel (MiniActv-5)
- */
 @Composable
-fun GameScreen(viewModel: CheckersViewModel) {
+fun GameScreen(viewModel: CheckersViewModel, onBack: () -> Unit) {
     val board = viewModel.boardState
     val currentPlayer = viewModel.currentPlayer
     val winner = viewModel.winner
@@ -52,63 +53,95 @@ fun GameScreen(viewModel: CheckersViewModel) {
             .fillMaxSize()
             .padding(dimensionResource(R.dimen.padding_standard)),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(
-            text = stringResource(R.string.game_title),
-            style = MaterialTheme.typography.headlineMedium
-        )
-        
-        Spacer(modifier = Modifier.height(dimensionResource(R.dimen.spacer_medium)))
+        // Cabecera con título y botón volver
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack) {
+                Text(text = "←", style = MaterialTheme.typography.headlineSmall)
+            }
+            Text(
+                text = stringResource(R.string.game_title),
+                style = MaterialTheme.typography.headlineMedium
+            )
+            Spacer(modifier = Modifier.width(48.dp)) // Equilibrio visual
+        }
 
         if (winner != null) {
-            // Muestra quién ha ganado (Tema 2)
             val winnerText = if (winner == PlayerColor.RED) {
                 stringResource(R.string.winner_red)
             } else {
                 stringResource(R.string.winner_black)
             }
             
-            Text(
-                text = winnerText,
-                style = MaterialTheme.typography.headlineSmall,
-                color = colorResource(R.color.board_dark)
-            )
-
-            Button(
-                onClick = { viewModel.resetGame() },
-                modifier = Modifier.padding(top = dimensionResource(R.dimen.padding_standard))
-            ) {
-                // Texto del botón desde resources
-                Text(text = stringResource(R.string.reset_button))
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = winnerText,
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = colorResource(R.color.board_dark)
+                )
+                Text(
+                    text = stringResource(R.string.timer_label, formatTime(viewModel.timeElapsed)),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Button(
+                    onClick = { viewModel.resetGame() },
+                    modifier = Modifier.padding(top = 16.dp)
+                ) {
+                    Text(text = stringResource(R.string.reset_button))
+                }
             }
         } else {
-            // Texto del turno
             val turnText = if (currentPlayer == PlayerColor.RED) {
                 stringResource(R.string.turn_red)
             } else {
                 stringResource(R.string.turn_black)
             }
             
-            Text(
-                text = turnText,
-                style = MaterialTheme.typography.bodyLarge,
-                color = if (currentPlayer == PlayerColor.RED) colorResource(R.color.piece_red) else colorResource(R.color.piece_black)
-            )
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = turnText,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = if (currentPlayer == PlayerColor.RED) colorResource(R.color.piece_red) else colorResource(R.color.piece_black)
+                )
+                Text(
+                    text = stringResource(R.string.timer_label, formatTime(viewModel.timeElapsed)),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
         }
-
-        Spacer(modifier = Modifier.height(dimensionResource(R.dimen.spacer_medium)))
 
         CheckersBoard(
             board = board, 
             onSquareClick = { r, c -> viewModel.onSquareClicked(r, c) }
         )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            Button(onClick = { viewModel.resetGame() }) {
+                Text(text = stringResource(R.string.reset_button))
+            }
+            OutlinedButton(onClick = { 
+                viewModel.surrender()
+            }) {
+                Text(text = stringResource(R.string.surrender_button))
+            }
+        }
     }
 }
 
-/**
- * Composable STATELESS: Solo dibuja, no conoce la lógica (Alta Cohesión)
- */
+fun formatTime(seconds: Long): String {
+    val mins = seconds / 60
+    val secs = seconds % 60
+    return "%02d:%02d".format(mins, secs)
+}
+
 @Composable
 fun CheckersBoard(board: List<List<Square>>, onSquareClick: (Int, Int) -> Unit) {
     Column(
@@ -133,7 +166,6 @@ fun CheckersBoard(board: List<List<Square>>, onSquareClick: (Int, Int) -> Unit) 
                             .weight(1f)
                             .fillMaxHeight()
                             .background(backgroundColor)
-                            // Si la casilla está seleccionada, añadimos un borde de resaltado (Tema 2)
                             .run {
                                 if (square.isSelected) {
                                     this.border(
@@ -154,11 +186,9 @@ fun CheckersBoard(board: List<List<Square>>, onSquareClick: (Int, Int) -> Unit) 
 
                             Canvas(modifier = Modifier.size(dimensionResource(R.dimen.piece_size))) {
                                 drawCircle(color = pieceColor)
-                                
-                                // Si es REINA, dibujamos una marca (Tema 2)
                                 if (piece.type == PieceType.QUEEN) {
                                     drawCircle(
-                                        color = androidx.compose.ui.graphics.Color.White,
+                                        color = Color.White,
                                         radius = size.minDimension / 4
                                     )
                                 }

@@ -1,9 +1,25 @@
 <resources>
     <string name="app_name">Damas</string>
-    <string name="game_title">Joc de Dames</string>
-    <string name="turn_red">Torn: Vermell</string>
-    <string name="turn_black">Torn: Negre</string>
-    <string name="winner_red">¡Ha guanyat el jugador VERMELL!</string>
-    <string name="winner_black">¡Ha guanyat el jugador NEGRE!</string>
+    <string name="game_title">Juego de Damas</string>
+    
+    <!-- Menú Principal -->
+    <string name="menu_title">Menú Principal</string>
+    <string name="btn_play">Nueva Partida</string>
+    <string name="btn_help">Cómo Jugar</string>
+    <string name="btn_practice">Modo Práctica</string>
+    <string name="btn_exit">Salir</string>
+
+    <!-- Gameplay -->
+    <string name="turn_red">Turno: Rojas</string>
+    <string name="turn_black">Turno: Negras</string>
+    <string name="winner_red">¡Ha ganado el jugador ROJO!</string>
+    <string name="winner_black">¡Ha ganado el jugador NEGRO!</string>
     <string name="reset_button">Reiniciar partida</string>
+    <string name="surrender_button">Rendirse</string>
+    <string name="timer_label">Tiempo: %s</string>
+
+    <!-- Ayuda -->
+    <string name="help_title">Reglas de las Damas</string>
+    <string name="help_content">1. El juego se juega en un tablero de 8x8.\n2. Las piezas se mueven diagonalmente hacia adelante.\n3. Si una pieza llega al extremo opuesto, se convierte en Dama.\n4. Las Damas pueden moverse hacia atrás.\n5. Las capturas son obligatorias.\n6. Gana quien capture todas las piezas del oponente.</string>
+    <string name="btn_back">Volver</string>
 </resources>

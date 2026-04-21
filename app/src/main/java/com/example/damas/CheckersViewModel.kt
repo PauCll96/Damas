@@ -4,6 +4,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.math.abs
 
 class CheckersViewModel : ViewModel() {
@@ -16,15 +20,21 @@ class CheckersViewModel : ViewModel() {
     var currentPlayer by mutableStateOf(PlayerColor.RED)
         private set
 
-    // Estado del ganador
     var winner by mutableStateOf<PlayerColor?>(null)
         private set
+
+    var timeElapsed by mutableStateOf(0L)
+        private set
+
+    private var timerJob: Job? = null
 
     init {
         resetGame()
     }
 
     fun resetGame() {
+        stopTimer()
+        timeElapsed = 0L
         boardState = List(8) { row ->
             List(8) { col ->
                 val piece = when {
@@ -37,10 +47,29 @@ class CheckersViewModel : ViewModel() {
         }
         currentPlayer = PlayerColor.RED
         winner = null
+        startTimer()
+    }
+
+    fun surrender() {
+        winner = if (currentPlayer == PlayerColor.RED) PlayerColor.BLACK else PlayerColor.RED
+        stopTimer()
+    }
+
+    private fun startTimer() {
+        timerJob = viewModelScope.launch {
+            while (winner == null) {
+                delay(1000)
+                timeElapsed++
+            }
+        }
+    }
+
+    private fun stopTimer() {
+        timerJob?.cancel()
     }
 
     fun onSquareClicked(row: Int, col: Int) {
-        if (winner != null) return // Si hay ganador, no se puede jugar más
+        if (winner != null) return
         
         val selectedSquare = findSelectedSquare()
         val clickedSquare = boardState[row][col]
@@ -74,8 +103,14 @@ class CheckersViewModel : ViewModel() {
         val redCount = pieces.count { it.color == PlayerColor.RED }
         val blackCount = pieces.count { it.color == PlayerColor.BLACK }
 
-        if (redCount == 0) winner = PlayerColor.BLACK
-        if (blackCount == 0) winner = PlayerColor.RED
+        if (redCount == 0) {
+            winner = PlayerColor.BLACK
+            stopTimer()
+        }
+        if (blackCount == 0) {
+            winner = PlayerColor.RED
+            stopTimer()
+        }
     }
 
     private fun isValidNormalMove(from: Square, toRow: Int, toCol: Int): Boolean {
