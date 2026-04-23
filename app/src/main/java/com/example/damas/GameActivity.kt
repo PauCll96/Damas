@@ -1,5 +1,6 @@
 package com.example.damas
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -113,6 +114,20 @@ fun ColorPicker(selectedColor: Long, onColorSelected: (Long) -> Unit) {
 
 @Composable
 fun MainGameScreen(vm: CheckersViewModel, onBack: () -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val winner = vm.winner
+
+    // Tema 3: Intent Explícit quan hi ha un guanyador
+    LaunchedEffect(winner) {
+        if (winner != null) {
+            val winName = if (winner == PlayerColor.RED) vm.settings.player1.name else vm.settings.player2.name
+            val intent = Intent(context, ResultsActivity::class.java).apply {
+                putExtra("WINNER", winName)
+            }
+            context.startActivity(intent)
+        }
+    }
+
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,

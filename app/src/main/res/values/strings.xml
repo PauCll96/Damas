@@ -1,27 +1,28 @@
 <resources>
     <string name="app_name">Damas</string>
     <string name="game_title">Juego de Damas</string>
-    
-    <!-- Menú Principal -->
-    <string name="menu_title">Menú Principal</string>
-    <string name="btn_play">2 Jugadores</string>
-    <string name="btn_play_ai">Jugar vs IA</string>
-    <string name="btn_help">Cómo Jugar</string>
-    <string name="btn_practice">Modo Práctica</string>
-    <string name="btn_exit">Salir</string>
-
-    <!-- Gameplay -->
-    <string name="turn_red">Turno: Rojas</string>
-    <string name="turn_ai">Turno: IA (pensando…)</string>
-    <string name="turn_black">Turno: Negras</string>
+    <string name="turn_red">Turno: Rojo</string>
+    <string name="turn_black">Turno: Negro</string>
     <string name="winner_red">¡Ha ganado el jugador ROJO!</string>
     <string name="winner_black">¡Ha ganado el jugador NEGRO!</string>
-    <string name="reset_button">Reiniciar partida</string>
-    <string name="surrender_button">Rendirse</string>
-    <string name="timer_label">Tiempo: %s</string>
+    
+    <!-- Pantalla de Menú -->
+    <string name="menu_title">DAMAS</string>
+    <string name="btn_play">Partida Local (PvP)</string>
+    <string name="btn_play_ai">Partida vs IA</string>
+    <string name="btn_help">Ayuda</string>
 
-    <!-- Ayuda -->
-    <string name="help_title">Reglas de las Damas</string>
-    <string name="help_content">1. El juego se juega en un tablero de 8x8.\n2. Las piezas se mueven diagonalmente hacia adelante.\n3. Si una pieza llega al extremo opuesto, se convierte en Dama.\n4. Las Damas pueden moverse hacia atrás.\n5. Las capturas son obligatorias.\n6. Gana quien capture todas las piezas del oponente.</string>
+    <!-- Pantalla de Resultados -->
+    <string name="results_title">RESULTADOS PARTIDA</string>
+    <string name="help_title">Ayuda</string>
+    <string name="help_content">Bienvenido al juego de Damas.\n\nReglas básicas:\n1. El movimiento es diagonal.\n2. Se captura saltando sobre la pieza contraria.\n3. Si llegas al extremo opuesto, te conviertes en Reina.</string>
     <string name="btn_back">Volver</string>
+    <string name="label_date">Día y hora</string>
+    <string name="label_log">Valores del Log</string>
+    <string name="label_email">E-mail destinatario</string>
+    <string name="btn_send_email">Enviar e-mail</string>
+    <string name="btn_new_game">Nueva partida</string>
+    <string name="btn_exit">Salir</string>
+    <string name="default_email"></string>
+    <string name="log_template">Alias: Jugador Tamaño tablero: 8x8 Ganador: %s</string>
 </resources>
