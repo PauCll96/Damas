@@ -26,17 +26,24 @@ class MenuActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     MenuScreen(
-                        onPlayClick = {
-                            val intent = Intent(this, GameActivity::class.java)
-                            startActivity(intent)
+                        onPvPClick = {
+                            startActivity(
+                                Intent(this, GameActivity::class.java).apply {
+                                    putExtra(GameActivity.EXTRA_MODE, GameMode.PLAYER_VS_PLAYER.name)
+                                }
+                            )
+                        },
+                        onPvAIClick = {
+                            startActivity(
+                                Intent(this, GameActivity::class.java).apply {
+                                    putExtra(GameActivity.EXTRA_MODE, GameMode.PLAYER_VS_AI.name)
+                                }
+                            )
                         },
                         onHelpClick = {
-                            val intent = Intent(this, HelpActivity::class.java)
-                            startActivity(intent)
+                            startActivity(Intent(this, HelpActivity::class.java))
                         },
-                        onExitClick = {
-                            finish()
-                        }
+                        onExitClick = { finish() }
                     )
                 }
             }
@@ -46,7 +53,8 @@ class MenuActivity : ComponentActivity() {
 
 @Composable
 fun MenuScreen(
-    onPlayClick: () -> Unit,
+    onPvPClick:  () -> Unit,
+    onPvAIClick: () -> Unit,
     onHelpClick: () -> Unit,
     onExitClick: () -> Unit
 ) {
@@ -58,29 +66,27 @@ fun MenuScreen(
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            text = stringResource(R.string.menu_title),
+            text  = stringResource(R.string.menu_title),
             style = MaterialTheme.typography.headlineLarge,
             color = MaterialTheme.colorScheme.primary
         )
-
         Spacer(modifier = Modifier.height(48.dp))
-
-        MenuButton(text = stringResource(R.string.btn_play), onClick = onPlayClick)
+        MenuButton(text = stringResource(R.string.btn_play),    onClick = onPvPClick)
         Spacer(modifier = Modifier.height(16.dp))
-        MenuButton(text = stringResource(R.string.btn_help), onClick = onHelpClick)
+        MenuButton(text = stringResource(R.string.btn_play_ai), onClick = onPvAIClick)
         Spacer(modifier = Modifier.height(16.dp))
-        MenuButton(text = stringResource(R.string.btn_exit), onClick = onExitClick)
+        MenuButton(text = stringResource(R.string.btn_help),    onClick = onHelpClick)
+        Spacer(modifier = Modifier.height(16.dp))
+        MenuButton(text = stringResource(R.string.btn_exit),    onClick = onExitClick)
     }
 }
 
 @Composable
 fun MenuButton(text: String, onClick: () -> Unit) {
     Button(
-        onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth(0.7f)
-            .height(56.dp),
-        shape = MaterialTheme.shapes.medium
+        onClick   = onClick,
+        modifier  = Modifier.fillMaxWidth(0.7f).height(56.dp),
+        shape     = MaterialTheme.shapes.medium
     ) {
         Text(text = text, style = MaterialTheme.typography.titleMedium)
     }

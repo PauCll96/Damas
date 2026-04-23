@@ -4,13 +4,15 @@
     
     <!-- Menú Principal -->
     <string name="menu_title">Menú Principal</string>
-    <string name="btn_play">Nueva Partida</string>
+    <string name="btn_play">2 Jugadores</string>
+    <string name="btn_play_ai">Jugar vs IA</string>
     <string name="btn_help">Cómo Jugar</string>
     <string name="btn_practice">Modo Práctica</string>
     <string name="btn_exit">Salir</string>
 
     <!-- Gameplay -->
     <string name="turn_red">Turno: Rojas</string>
+    <string name="turn_ai">Turno: IA (pensando…)</string>
     <string name="turn_black">Turno: Negras</string>
     <string name="winner_red">¡Ha ganado el jugador ROJO!</string>
     <string name="winner_black">¡Ha ganado el jugador NEGRO!</string>
