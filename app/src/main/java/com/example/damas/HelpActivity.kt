@@ -1,6 +1,7 @@
 package com.example.damas
 
 import android.os.Bundle
+import com.example.damas.R
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
