@@ -9,40 +9,42 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.damas.ui.theme.DamasTheme
 
 class GameActivity : ComponentActivity() {
-
-    companion object {
-        const val EXTRA_MODE = "extra_game_mode"
-    }
+    companion object { const val EXTRA_MODE = "extra_game_mode" }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val modeName = intent.getStringExtra(EXTRA_MODE) ?: GameMode.PLAYER_VS_PLAYER.name
-        val gameMode = GameMode.valueOf(modeName)
+        val initialMode = GameMode.valueOf(modeName)
+
         setContent {
             DamasTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color    = MaterialTheme.colorScheme.background
-                ) {
-                    val vm: CheckersViewModel = viewModel()
-                    // Configurar modo al iniciar (solo una vez, antes del primer recompose)
-                    LaunchedEffect(Unit) { vm.changeGameMode(gameMode) }
-                    GameScreen(viewModel = vm, onBack = { finish() })
+                val vm: CheckersViewModel = viewModel()
+                LaunchedEffect(Unit) { vm.settings.mode = initialMode }
+
+                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                    if (!vm.isGameStarted) {
+                        SetupScreen(vm) { finish() }
+                    } else {
+                        MainGameScreen(vm) { vm.resetToMenu() }
+                    }
                 }
             }
         }
@@ -50,81 +52,122 @@ class GameActivity : ComponentActivity() {
 }
 
 @Composable
-fun GameScreen(viewModel: CheckersViewModel, onBack: () -> Unit) {
-    val board       = viewModel.boardState
-    val current     = viewModel.currentPlayer
-    val winner      = viewModel.winner
-    val isThinking  = viewModel.isAiThinking
-    val isAiMode    = viewModel.gameMode == GameMode.PLAYER_VS_AI
-    val aiColor     = viewModel.aiColor
-
+fun SetupScreen(vm: CheckersViewModel, onBack: () -> Unit) {
+    val settings = vm.settings
     Column(
-        modifier            = Modifier.fillMaxSize().padding(dimensionResource(R.dimen.padding_standard)),
+        modifier = Modifier.fillMaxSize().padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceBetween
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // ── Cabecera ──────────────────────────────────────────────────────────
-        Row(
-            modifier            = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment   = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onBack) {
-                Text(text = "←", style = MaterialTheme.typography.headlineSmall)
+        Text("Configuración de Partida", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text("Jugador 1", fontWeight = FontWeight.Bold)
+                TextField(value = settings.player1.name, onValueChange = { settings.player1 = settings.player1.copy(name = it) }, modifier = Modifier.fillMaxWidth())
+                ColorPicker(selectedColor = settings.player1.colorHex) { settings.player1 = settings.player1.copy(colorHex = it) }
             }
-            Text(text = stringResource(R.string.game_title), style = MaterialTheme.typography.headlineMedium)
-            Spacer(modifier = Modifier.width(48.dp))
         }
 
-        // ── Estado del juego ──────────────────────────────────────────────────
-        if (winner != null) {
-            val winnerText = if (winner == PlayerColor.RED) stringResource(R.string.winner_red)
-                             else                          stringResource(R.string.winner_black)
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(text = winnerText, style = MaterialTheme.typography.headlineSmall,
-                    color = colorResource(R.color.board_dark))
-                Text(text = stringResource(R.string.timer_label, formatTime(viewModel.timeElapsed)),
-                    style = MaterialTheme.typography.bodyMedium)
-                Button(onClick = { viewModel.resetGame() }, modifier = Modifier.padding(top = 16.dp)) {
-                    Text(text = stringResource(R.string.reset_button))
+        if (settings.mode == GameMode.PLAYER_VS_PLAYER) {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Jugador 2", fontWeight = FontWeight.Bold)
+                    TextField(value = settings.player2.name, onValueChange = { settings.player2 = settings.player2.copy(name = it) }, modifier = Modifier.fillMaxWidth())
+                    ColorPicker(selectedColor = settings.player2.colorHex) { settings.player2 = settings.player2.copy(colorHex = it) }
                 }
             }
         } else {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                val turnText = when {
-                    isAiMode && current == aiColor -> stringResource(R.string.turn_ai)
-                    current == PlayerColor.RED     -> stringResource(R.string.turn_red)
-                    else                           -> stringResource(R.string.turn_black)
-                }
-                Text(
-                    text  = turnText,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = if (current == PlayerColor.RED) colorResource(R.color.piece_red)
-                            else                           colorResource(R.color.piece_black)
-                )
-                Text(text = stringResource(R.string.timer_label, formatTime(viewModel.timeElapsed)),
-                    style = MaterialTheme.typography.bodyMedium)
-                // Indicador de IA pensando
-                if (isThinking) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth(0.5f))
-                }
+            Text("IA lista para jugar", color = MaterialTheme.colorScheme.secondary)
+            LaunchedEffect(Unit) { settings.player2.name = "IA" }
+        }
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("Tiempo: ${settings.maxTimeMinutes} min", modifier = Modifier.weight(1f))
+                Slider(value = settings.maxTimeMinutes.toFloat(), onValueChange = { settings.maxTimeMinutes = it.toInt() }, valueRange = 1f..30f, modifier = Modifier.weight(1f))
             }
         }
 
-        // ── Tablero ───────────────────────────────────────────────────────────
-        CheckersBoard(
-            board         = board,
-            onSquareClick = { r, c -> viewModel.onSquareClicked(r, c) }
-        )
+        Spacer(modifier = Modifier.weight(1f))
+        Button(onClick = { vm.startGame() }, modifier = Modifier.fillMaxWidth().height(56.dp)) {
+            Text("▶  ¡EMPEZAR PARTIDA!")
+        }
+        TextButton(onClick = onBack) { Text("Cancelar") }
+    }
+}
 
-        // ── Botones ───────────────────────────────────────────────────────────
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-            Button(onClick = { viewModel.resetGame() }) {
-                Text(text = stringResource(R.string.reset_button))
+@Composable
+fun ColorPicker(selectedColor: Long, onColorSelected: (Long) -> Unit) {
+    val colors = listOf(0xFFFF0000, 0xFF0000FF, 0xFF00FF00, 0xFF000000, 0xFFFFA500)
+    Row(modifier = Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        colors.forEach { hex ->
+            Box(
+                modifier = Modifier.size(36.dp).clip(CircleShape).background(Color(hex))
+                    .border(2.dp, if (selectedColor == hex) Color.White else Color.Transparent, CircleShape)
+                    .clickable { onColorSelected(hex) }
+            )
+        }
+    }
+}
+
+@Composable
+fun MainGameScreen(vm: CheckersViewModel, onBack: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text("Damas", style = MaterialTheme.typography.headlineMedium)
+
+        if (vm.winner != null) {
+            val winName = if (vm.winner == PlayerColor.RED) vm.settings.player1.name else vm.settings.player2.name
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("¡Ganador: $winName!", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                Button(onClick = { vm.startGame() }) { Text("Nueva Partida") }
             }
-            OutlinedButton(onClick = { viewModel.surrender() }) {
-                Text(text = stringResource(R.string.surrender_button))
+        } else {
+            val turnName = if (vm.currentPlayer == PlayerColor.RED) vm.settings.player1.name else vm.settings.player2.name
+            val turnColor = Color(if (vm.currentPlayer == PlayerColor.RED) vm.settings.player1.colorHex else vm.settings.player2.colorHex)
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("Turno de: $turnName", color = turnColor, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Text("Tiempo: ${formatTime(vm.timeElapsed)}")
+                if (vm.isAiThinking) LinearProgressIndicator(Modifier.width(100.dp))
+            }
+        }
+
+        CheckersBoard(vm)
+
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+            Button(onClick = onBack) { Text("Menú") }
+            OutlinedButton(onClick = { vm.surrender() }) { Text("Rendirse") }
+        }
+    }
+}
+
+@Composable
+fun CheckersBoard(vm: CheckersViewModel) {
+    Column(modifier = Modifier.aspectRatio(1f).border(2.dp, Color.Gray)) {
+        vm.boardState.forEachIndexed { r, row ->
+            Row(modifier = Modifier.weight(1f)) {
+                row.forEachIndexed { c, sq ->
+                    val isLight = (r + c) % 2 == 0
+                    Box(
+                        modifier = Modifier.weight(1f).fillMaxHeight()
+                            .background(if (isLight) Color(0xFFF0D9B5) else Color(0xFFB58863))
+                            .run { if (sq.isSelected) border(3.dp, Color.Yellow) else this }
+                            .clickable { vm.onSquareClicked(r, c) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        sq.piece?.let { piece ->
+                            val pColor = Color(if (piece.color == PlayerColor.RED) vm.settings.player1.colorHex else vm.settings.player2.colorHex)
+                            Canvas(modifier = Modifier.fillMaxSize(0.8f)) {
+                                drawCircle(color = pColor)
+                                if (piece.type == PieceType.QUEEN) drawCircle(color = Color.White, radius = size.minDimension / 4)
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -133,54 +176,4 @@ fun GameScreen(viewModel: CheckersViewModel, onBack: () -> Unit) {
 fun formatTime(seconds: Long): String {
     val mins = seconds / 60; val secs = seconds % 60
     return "%02d:%02d".format(mins, secs)
-}
-
-@Composable
-fun CheckersBoard(
-    board:        List<List<Square>>,
-    onSquareClick: (Int, Int) -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .aspectRatio(1f)
-            .border(dimensionResource(R.dimen.border_thin), colorResource(R.color.border_color))
-    ) {
-        board.forEachIndexed { rowIdx, row ->
-            Row(modifier = Modifier.weight(1f)) {
-                row.forEachIndexed { colIdx, square ->
-                    val isLight       = (rowIdx + colIdx) % 2 == 0
-                    val bgColor       = when {
-                        isLight     -> colorResource(R.color.board_light)
-                        else        -> colorResource(R.color.board_dark)
-                    }
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .background(bgColor)
-                            .run {
-                                if (square.isSelected)
-                                    border(dimensionResource(R.dimen.border_thin), colorResource(R.color.selected_highlight))
-                                else this
-                            }
-                            .clickable { onSquareClick(rowIdx, colIdx) },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        square.piece?.let { piece ->
-                            val pieceColor = if (piece.color == PlayerColor.RED)
-                                colorResource(R.color.piece_red)
-                            else
-                                colorResource(R.color.piece_black)
-                            Canvas(modifier = Modifier.size(dimensionResource(R.dimen.piece_size))) {
-                                drawCircle(color = pieceColor)
-                                if (piece.type == PieceType.QUEEN) {
-                                    drawCircle(color = Color.White, radius = size.minDimension / 4)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
 }

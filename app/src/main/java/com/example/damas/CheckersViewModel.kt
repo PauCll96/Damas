@@ -11,7 +11,12 @@ import kotlin.math.abs
 
 class CheckersViewModel : ViewModel() {
 
-    // --- ESTADO (Basado en Tema 3 / MiniActv-5) ---
+    // --- CONFIGURACIÓN Y LOBBY ---
+    var settings by mutableStateOf(GameSettings())
+    var isGameStarted by mutableStateOf(false)
+        private set
+
+    // --- ESTADO ---
     var boardState by mutableStateOf(createInitialBoard())
         private set
 
@@ -27,27 +32,28 @@ class CheckersViewModel : ViewModel() {
     var isAiThinking by mutableStateOf(false)
         private set
 
-    var gameMode by mutableStateOf(GameMode.PLAYER_VS_PLAYER)
-        private set
+    // Pieza que debe continuar capturando (encadenamiento)
+    private var activeMultiCapturePiece by mutableStateOf<Square?>(null)
 
-    val aiColor = PlayerColor.BLACK // La IA siempre juega con Negras en este modo simple
+    val aiColor = PlayerColor.BLACK
 
     init {
         startTimer()
     }
 
-    // --- CONFIGURACIÓN ---
-    fun changeGameMode(mode: GameMode) {
-        gameMode = mode
-        resetGame()
-    }
-
-    fun resetGame() {
+    // --- ACCIONES DE PARTIDA ---
+    fun startGame() {
         boardState = createInitialBoard()
         currentPlayer = PlayerColor.RED
         winner = null
         timeElapsed = 0L
         isAiThinking = false
+        activeMultiCapturePiece = null
+        isGameStarted = true
+    }
+
+    fun resetToMenu() {
+        isGameStarted = false
     }
 
     fun surrender() {
@@ -56,154 +62,156 @@ class CheckersViewModel : ViewModel() {
 
     // --- INTERACCIÓN ---
     fun onSquareClicked(row: Int, col: Int) {
-        if (winner != null || isAiThinking) return
-        if (gameMode == GameMode.PLAYER_VS_AI && currentPlayer == PlayerColor.BLACK) return
+        if (winner != null || isAiThinking || !isGameStarted) return
+        if (settings.mode == GameMode.PLAYER_VS_AI && currentPlayer == PlayerColor.BLACK) return
 
-        val selected = findSelectedSquare()
         val clicked = boardState[row][col]
+        val selected = findSelectedSquare()
+
+        if (activeMultiCapturePiece != null) {
+            if (selected != null && clicked.piece == null) {
+                val move = getMoveType(selected, row, col)
+                if (move is MoveType.Capture) executeMove(selected, row, col, move)
+            } else if (clicked.row == activeMultiCapturePiece?.row && clicked.col == activeMultiCapturePiece?.col) {
+                selectSquare(row, col)
+            }
+            return
+        }
 
         if (selected != null && clicked.piece == null) {
-            // Intentar mover a casilla vacía
-            if (checkMove(selected, row, col)) {
-                executeMove(selected, row, col)
+            val move = getMoveType(selected, row, col)
+            if (move != MoveType.Invalid) {
+                if (hasAnyCapture(currentPlayer) && move is MoveType.Simple) {
+                    clearSelection()
+                    return
+                }
+                executeMove(selected, row, col, move)
             } else {
                 clearSelection()
             }
         } else if (clicked.piece?.color == currentPlayer) {
-            // Seleccionar pieza propia
             selectSquare(row, col)
         } else {
             clearSelection()
         }
     }
 
-    // --- LÓGICA DE MOVIMIENTO (Simplificada) ---
-    private fun checkMove(from: Square, toR: Int, toC: Int): Boolean {
-        val piece = from.piece ?: return false
-        val rowDiff = toR - from.row
-        val colDiff = abs(toC - from.col)
-
-        // Movimiento básico (diagonal 1 paso)
-        val isStep = colDiff == 1 && (
-                piece.type == PieceType.QUEEN || 
-                (piece.color == PlayerColor.RED && rowDiff == -1) || 
-                (piece.color == PlayerColor.BLACK && rowDiff == 1)
-        )
-
-        // Captura (diagonal 2 pasos saltando enemigo)
-        val isJump = colDiff == 2 && abs(rowDiff) == 2 && let {
-            val midR = (from.row + toR) / 2
-            val midC = (from.col + toC) / 2
-            val midPiece = boardState[midR][midC].piece
-            midPiece != null && midPiece.color != piece.color
-        }
-
-        return isStep || isJump
+    sealed class MoveType {
+        object Invalid : MoveType(); object Simple : MoveType()
+        data class Capture(val victimRow: Int, val victimCol: Int) : MoveType()
     }
 
-    private fun executeMove(from: Square, toR: Int, toC: Int) {
-        val isJump = abs(from.row - toR) == 2
-        
-        // Actualizar tablero usando .map para seguir el patrón de Compose
+    private fun getMoveType(from: Square, toR: Int, toC: Int): MoveType {
+        val piece = from.piece ?: return MoveType.Invalid
+        val rowDiff = toR - from.row
+        val colDiff = toC - from.col
+        val absRD = abs(rowDiff); val absCD = abs(colDiff)
+
+        if (absRD != absCD || absRD == 0 || boardState[toR][toC].piece != null) return MoveType.Invalid
+        val dr = rowDiff / absRD; val dc = colDiff / absCD
+
+        if (piece.type == PieceType.NORMAL) {
+            if (absRD == 1) {
+                val forward = if (piece.color == PlayerColor.RED) -1 else 1
+                return if (dr == forward) MoveType.Simple else MoveType.Invalid
+            }
+            if (absRD == 2) {
+                val midR = from.row + dr; val midC = from.col + dc
+                val midP = boardState[midR][midC].piece
+                return if (midP != null && midP.color != piece.color) MoveType.Capture(midR, midC) else MoveType.Invalid
+            }
+        } else {
+            var piecesInBetween = 0; var victimPos: Pair<Int, Int>? = null
+            for (i in 1 until absRD) {
+                val r = from.row + i * dr; val c = from.col + i * dc
+                val p = boardState[r][c].piece
+                if (p != null) {
+                    piecesInBetween++; if (p.color == piece.color) return MoveType.Invalid
+                    victimPos = r to c
+                }
+            }
+            return when (piecesInBetween) {
+                0 -> MoveType.Simple
+                1 -> MoveType.Capture(victimPos!!.first, victimPos.second)
+                else -> MoveType.Invalid
+            }
+        }
+        return MoveType.Invalid
+    }
+
+    private fun hasAnyCapture(player: PlayerColor) = boardState.flatten().filter { it.piece?.color == player }.any { canPieceCapture(it) }
+
+    private fun canPieceCapture(sq: Square): Boolean {
+        val piece = sq.piece ?: return false
+        val range = if (piece.type == PieceType.QUEEN) 1..7 else listOf(2)
+        for (dr in listOf(-1, 1)) for (dc in listOf(-1, 1)) for (dist in range) {
+            val tr = sq.row + dr * dist; val tc = sq.col + dc * dist
+            if (tr in 0..7 && tc in 0..7 && getMoveType(sq, tr, tc) is MoveType.Capture) return true
+        }
+        return false
+    }
+
+    private fun executeMove(from: Square, toR: Int, toC: Int, move: MoveType) {
+        val piece = from.piece ?: return
         boardState = boardState.mapIndexed { r, rowList ->
             rowList.mapIndexed { c, sq ->
                 when {
                     r == from.row && c == from.col -> sq.copy(piece = null, isSelected = false)
                     r == toR && c == toC -> {
-                        val promoted = (toR == 0 && from.piece?.color == PlayerColor.RED) || (toR == 7 && from.piece?.color == PlayerColor.BLACK)
-                        val newType = if (promoted) PieceType.QUEEN else from.piece?.type ?: PieceType.NORMAL
-                        sq.copy(piece = from.piece?.copy(type = newType), isSelected = false)
+                        val promoted = (toR == 0 && piece.color == PlayerColor.RED) || (toR == 7 && piece.color == PlayerColor.BLACK)
+                        sq.copy(piece = piece.copy(type = if (promoted) PieceType.QUEEN else piece.type), isSelected = false)
                     }
-                    isJump && r == (from.row + toR) / 2 && c == (from.col + toC) / 2 -> sq.copy(piece = null)
+                    move is MoveType.Capture && r == move.victimRow && c == move.victimCol -> sq.copy(piece = null)
                     else -> sq.copy(isSelected = false)
                 }
             }
         }
 
-        checkGameEnd()
+        if (move is MoveType.Capture && canPieceCapture(boardState[toR][toC])) {
+            activeMultiCapturePiece = boardState[toR][toC]
+            selectSquare(toR, toC)
+            if (settings.mode == GameMode.PLAYER_VS_AI && currentPlayer == PlayerColor.BLACK) runAi()
+            return
+        }
+
+        activeMultiCapturePiece = null; checkGameEnd()
         if (winner == null) {
             currentPlayer = if (currentPlayer == PlayerColor.RED) PlayerColor.BLACK else PlayerColor.RED
-            if (gameMode == GameMode.PLAYER_VS_AI && currentPlayer == PlayerColor.BLACK) {
-                runAi()
-            }
+            if (settings.mode == GameMode.PLAYER_VS_AI && currentPlayer == PlayerColor.BLACK) runAi()
         }
     }
 
-    // --- IA SIMPLE (Integrada aquí) ---
     private fun runAi() {
         isAiThinking = true
         viewModelScope.launch {
-            delay(600) // Pausa para que no sea instantáneo
-            
-            val allMoves = mutableListOf<Triple<Square, Int, Int>>()
-            val allCaptures = mutableListOf<Triple<Square, Int, Int>>()
-
-            // Buscar todos los movimientos posibles de la IA (BLACK)
-            boardState.flatten().filter { it.piece?.color == PlayerColor.BLACK }.forEach { sq ->
-                for (dr in listOf(-2, -1, 1, 2)) {
-                    for (dc in listOf(-2, -1, 1, 2)) {
-                        val tr = sq.row + dr
-                        val tc = sq.col + dc
-                        if (tr in 0..7 && tc in 0..7 && boardState[tr][tc].piece == null) {
-                            if (checkMove(sq, tr, tc)) {
-                                if (abs(dr) == 2) allCaptures.add(Triple(sq, tr, tc))
-                                else allMoves.add(Triple(sq, tr, tc))
-                            }
-                        }
+            delay(if (activeMultiCapturePiece != null) 400 else 800)
+            val pieces = if (activeMultiCapturePiece != null) listOf(activeMultiCapturePiece!!) else boardState.flatten().filter { it.piece?.color == PlayerColor.BLACK }
+            val caps = mutableListOf<Triple<Square, Int, Int>>(); val moves = mutableListOf<Triple<Square, Int, Int>>()
+            for (sq in pieces) {
+                val range = if (sq.piece?.type == PieceType.QUEEN) 1..7 else 1..2
+                for (dr in listOf(-1, 1)) for (dc in listOf(-1, 1)) for (dist in range) {
+                    val tr = sq.row + dr * dist; val tc = sq.col + dc * dist
+                    if (tr in 0..7 && tc in 0..7) {
+                        val m = getMoveType(sq, tr, tc)
+                        if (m is MoveType.Capture) caps.add(Triple(sq, tr, tc)) else if (m is MoveType.Simple) moves.add(Triple(sq, tr, tc))
                     }
                 }
             }
-
-            // Prioridad: 1. Capturar si puede | 2. Mover normal | 3. Si no hay nada, rinde
-            val bestMove = if (allCaptures.isNotEmpty()) allCaptures.random() 
-                           else if (allMoves.isNotEmpty()) allMoves.random() 
-                           else null
-
-            if (bestMove != null) {
-                executeMove(bestMove.first, bestMove.second, bestMove.third)
-            } else {
-                winner = PlayerColor.RED // IA se bloquea
-            }
+            val sel = if (caps.isNotEmpty()) caps.random() else if (moves.isNotEmpty() && !hasAnyCapture(PlayerColor.BLACK)) moves.random() else null
+            if (sel != null) executeMove(sel.first, sel.second, sel.third, getMoveType(sel.first, sel.second, sel.third))
+            else if (activeMultiCapturePiece == null) winner = PlayerColor.RED
             isAiThinking = false
         }
     }
 
-    // --- HELPERS ---
-    private fun createInitialBoard() = List(8) { r ->
-        List(8) { c ->
-            val p = when {
-                (r + c) % 2 != 0 && r < 3 -> Piece(PlayerColor.BLACK)
-                (r + c) % 2 != 0 && r > 4 -> Piece(PlayerColor.RED)
-                else -> null
-            }
-            Square(r, c, p)
-        }
-    }
-
+    private fun createInitialBoard() = List(8) { r -> List(8) { c -> Square(r, c, if ((r + c) % 2 != 0) (if (r < 3) Piece(PlayerColor.BLACK) else if (r > 4) Piece(PlayerColor.RED) else null) else null) } }
     private fun findSelectedSquare() = boardState.flatten().find { it.isSelected }
-
-    private fun selectSquare(r: Int, c: Int) {
-        boardState = boardState.mapIndexed { rowIdx, rowList ->
-            rowList.mapIndexed { colIdx, sq -> sq.copy(isSelected = (rowIdx == r && colIdx == c)) }
-        }
-    }
-
-    private fun clearSelection() {
-        boardState = boardState.mapIndexed { _, rowList -> rowList.map { it.copy(isSelected = false) } }
-    }
-
+    private fun selectSquare(r: Int, c: Int) { boardState = boardState.mapIndexed { ri, row -> row.mapIndexed { ci, sq -> sq.copy(isSelected = ri == r && ci == c) } } }
+    private fun clearSelection() { boardState = boardState.map { row -> row.map { it.copy(isSelected = false) } } }
     private fun checkGameEnd() {
-        val pieces = boardState.flatten().mapNotNull { it.piece }
-        if (pieces.none { it.color == PlayerColor.BLACK }) winner = PlayerColor.RED
-        if (pieces.none { it.color == PlayerColor.RED }) winner = PlayerColor.BLACK
+        val p = boardState.flatten().mapNotNull { it.piece }
+        if (p.none { it.color == PlayerColor.BLACK }) winner = PlayerColor.RED
+        if (p.none { it.color == PlayerColor.RED }) winner = PlayerColor.BLACK
     }
-
-    private fun startTimer() {
-        viewModelScope.launch {
-            while (true) {
-                delay(1000)
-                if (winner == null) timeElapsed++
-            }
-        }
-    }
+    private fun startTimer() { viewModelScope.launch { while (true) { delay(1000); if (winner == null && isGameStarted) timeElapsed++ } } }
 }
