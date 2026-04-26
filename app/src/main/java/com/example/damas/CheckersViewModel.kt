@@ -26,7 +26,7 @@ class CheckersViewModel : ViewModel() {
     var winner by mutableStateOf<PlayerColor?>(null)
         private set
 
-    var timeElapsed by mutableStateOf(0L)
+    var timeLeftSeconds by mutableStateOf(0L)
         private set
 
     var isAiThinking by mutableStateOf(false)
@@ -38,7 +38,19 @@ class CheckersViewModel : ViewModel() {
     val aiColor = PlayerColor.BLACK
 
     init {
-        startTimer()
+        // El timer se inicia al crear el VM, pero solo descuenta si la partida ha empezado
+        viewModelScope.launch {
+            while (true) {
+                delay(1000)
+                if (winner == null && isGameStarted) {
+                    if (timeLeftSeconds > 0) {
+                        timeLeftSeconds--
+                    } else {
+                        onTimeUp()
+                    }
+                }
+            }
+        }
     }
 
     // --- ACCIONES DE PARTIDA ---
@@ -46,7 +58,7 @@ class CheckersViewModel : ViewModel() {
         boardState = createInitialBoard()
         currentPlayer = PlayerColor.RED
         winner = null
-        timeElapsed = 0L
+        timeLeftSeconds = settings.maxTimeMinutes * 60L
         isAiThinking = false
         activeMultiCapturePiece = null
         isGameStarted = true
@@ -213,18 +225,20 @@ class CheckersViewModel : ViewModel() {
         if (p.none { it.color == PlayerColor.BLACK }) winner = PlayerColor.RED
         if (p.none { it.color == PlayerColor.RED }) winner = PlayerColor.BLACK
     }
-    private fun startTimer() {
-        viewModelScope.launch {
-            while (true) {
-                delay(1000)
-                if (winner == null && isGameStarted) {
-                    timeElapsed++
-                    if (timeElapsed >= settings.maxTimeMinutes * 60L) {
-                        // Se acabó el tiempo
-                        winner = if (currentPlayer == PlayerColor.RED) PlayerColor.BLACK else PlayerColor.RED
-                    }
-                }
-            }
+
+    private fun onTimeUp() {
+        if (winner != null) return
+        val pieces = boardState.flatten().mapNotNull { it.piece }
+        val redCount = pieces.count { it.color == PlayerColor.RED }
+        val blackCount = pieces.count { it.color == PlayerColor.BLACK }
+        
+        winner = when {
+            redCount > blackCount -> PlayerColor.RED
+            blackCount > redCount -> PlayerColor.BLACK
+            else -> null // Empate
+        }
+        if (winner == null && redCount == blackCount) {
+             isGameStarted = false // Detener juego en empate
         }
     }
 }
