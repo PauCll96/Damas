@@ -1,4 +1,4 @@
-package com.example.damas
+package com.example.damas.activities
 
 import android.content.Intent
 import android.os.Bundle
@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.example.damas.data.constants.GameMode
 import com.example.damas.ui.theme.DamasTheme
 
 class MenuActivity : ComponentActivity() {

@@ -13,3 +13,8 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# AI and temporary files
+IAREAD.md
+criterios.txt
+PROJECT_STRUCTURE.md

@@ -1,4 +1,4 @@
-package com.example.damas
+package com.example.damas.activities
 
 import android.os.Bundle
 import com.example.damas.R

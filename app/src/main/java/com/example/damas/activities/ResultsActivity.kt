@@ -1,8 +1,9 @@
-package com.example.damas
+package com.example.damas.activities
 
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import com.example.damas.R
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
@@ -20,10 +21,12 @@ class ResultsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // Rebem qui ha guanyat per Intent (Tema 3)
+        // Rebem qui ha guanyat i el temps per Intent
         val winner = intent.getStringExtra("WINNER") ?: "Desconegut"
+        val timeLeft = intent.getStringExtra("TIME_LEFT") ?: "00:00"
         val date = SimpleDateFormat("dd/MM/yy, HH:mm", Locale.getDefault()).format(Date())
-        val logContent = getString(R.string.log_template, winner)
+        
+        val logContent = getString(R.string.log_template, winner) + "\nTemps restant: $timeLeft"
 
         setContent {
             DamasTheme {

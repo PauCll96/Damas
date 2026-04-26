@@ -1,4 +1,4 @@
-package com.example.damas
+package com.example.damas.activities
 
 import android.content.Intent
 import android.os.Bundle
@@ -24,8 +24,15 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
-import com.example.damas.ui.theme.DamasTheme
+import com.example.damas.R
+import com.example.damas.data.constants.GameMode
+import com.example.damas.data.constants.PieceType
+import com.example.damas.data.constants.Teams
+import com.example.damas.data.local.Board
+import com.example.damas.viewmodels.GameViewModel
+import com.example.damas.ui.theme.*
 
 class GameActivity : ComponentActivity() {
     companion object { const val EXTRA_MODE = "extra_game_mode" }
@@ -38,18 +45,41 @@ class GameActivity : ComponentActivity() {
 
         setContent {
             DamasTheme {
-                val vm: CheckersViewModel = viewModel()
+                val vm: GameViewModel = viewModel()
                 
-                // Inicialitzem el mode només un cop
+                // Inicialización única (Stateful)
                 LaunchedEffect(Unit) {
-                    vm.settings = vm.settings.copy(mode = initialMode)
+                    if (!vm.isGameStarted) {
+                        vm.settings = vm.settings.copy(mode = initialMode)
+                    }
                 }
 
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     if (!vm.isGameStarted) {
-                        SetupScreen(vm) { finish() }
+                        SetupScreen(
+                            settings = vm.settings,
+                            onSettingsChange = { vm.settings = it },
+                            onStartGame = { vm.startGame() },
+                            onBack = { finish() }
+                        )
                     } else {
-                        MainGameScreen(vm) { vm.resetToMenu() }
+                        MainGameScreen(
+                            settings = vm.settings,
+                            board = vm.board,
+                            currentPlayer = vm.currentPlayer,
+                            timeLeftSeconds = vm.timeLeftSeconds,
+                            isAiThinking = vm.isAiThinking,
+                            winner = vm.winner,
+                            onCellClicked = { r, c -> vm.onCellClicked(r, c) },
+                            onSurrender = { vm.surrender() },
+                            onNavigateToResults = { winName, time ->
+                                val intent = Intent(this, ResultsActivity::class.java).apply {
+                                    putExtra("WINNER", winName)
+                                    putExtra("TIME_LEFT", time)
+                                }
+                                startActivity(intent)
+                            }
+                        )
                     }
                 }
             }
@@ -57,9 +87,15 @@ class GameActivity : ComponentActivity() {
     }
 }
 
+// --- COMPONENTES STATELESS (Sin dependencia directa del ViewModel) ---
+
 @Composable
-fun SetupScreen(vm: CheckersViewModel, onBack: () -> Unit) {
-    val settings = vm.settings
+fun SetupScreen(
+    settings: com.example.damas.data.models.GameSettings,
+    onSettingsChange: (com.example.damas.data.models.GameSettings) -> Unit,
+    onStartGame: () -> Unit,
+    onBack: () -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -68,24 +104,24 @@ fun SetupScreen(vm: CheckersViewModel, onBack: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("Configuració de Partida", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.setup_title), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
         
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text("Jugador 1", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Text(stringResource(R.string.player_1_label), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                 TextField(
                     value = settings.player1.name,
-                    onValueChange = { vm.settings = settings.copy(player1 = settings.player1.copy(name = it)) },
-                    label = { Text("Nom") },
+                    onValueChange = { onSettingsChange(settings.copy(player1 = settings.player1.copy(name = it))) },
+                    label = { Text(stringResource(R.string.name_label)) },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("Color de fitxes:", style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.piece_color_label), style = MaterialTheme.typography.bodySmall)
                 ColorPicker(
                     selectedColor = settings.player1.colorHex,
                     disabledColors = listOf(settings.player2.colorHex)
                 ) { 
-                    vm.settings = settings.copy(player1 = settings.player1.copy(colorHex = it))
+                    onSettingsChange(settings.copy(player1 = settings.player1.copy(colorHex = it)))
                 }
             }
         }
@@ -93,65 +129,63 @@ fun SetupScreen(vm: CheckersViewModel, onBack: () -> Unit) {
         if (settings.mode == GameMode.PLAYER_VS_PLAYER) {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Jugador 2", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary)
+                    Text(stringResource(R.string.player_2_label), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary)
                     TextField(
                         value = settings.player2.name,
-                        onValueChange = { vm.settings = settings.copy(player2 = settings.player2.copy(name = it)) },
-                        label = { Text("Nom") },
+                        onValueChange = { onSettingsChange(settings.copy(player2 = settings.player2.copy(name = it))) },
+                        label = { Text(stringResource(R.string.name_label)) },
                         modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("Color de fitxes:", style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(R.string.piece_color_label), style = MaterialTheme.typography.bodySmall)
                     ColorPicker(
                         selectedColor = settings.player2.colorHex,
                         disabledColors = listOf(settings.player1.colorHex)
                     ) { 
-                        vm.settings = settings.copy(player2 = settings.player2.copy(colorHex = it))
+                        onSettingsChange(settings.copy(player2 = settings.player2.copy(colorHex = it)))
                     }
                 }
             }
         } else {
-            Text("IA a punt per jugar (Color: Negre)", color = MaterialTheme.colorScheme.secondary)
+            Text(stringResource(R.string.ia_ready_label), color = MaterialTheme.colorScheme.secondary)
             LaunchedEffect(settings.mode) { 
-                // Forcem a la IA a ser Negre
                 val newP2 = settings.player2.copy(name = "IA", colorHex = 0xFF000000L)
-                // Si el jugador 1 ja era Negre, el cambiem a Vermell
                 val newP1 = if (settings.player1.colorHex == 0xFF000000L) {
                     settings.player1.copy(colorHex = 0xFFFF0000L)
                 } else {
                     settings.player1
                 }
-                vm.settings = settings.copy(player1 = newP1, player2 = newP2)
+                onSettingsChange(settings.copy(player1 = newP1, player2 = newP2))
             }
         }
 
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text("Temps de partida (minuts)", fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.game_time_label), fontWeight = FontWeight.Bold)
                 TextField(
                     value = if (settings.maxTimeMinutes == 0) "" else settings.maxTimeMinutes.toString(),
                     onValueChange = { newValue ->
                         val filtered = newValue.filter { it.isDigit() }
-                        vm.settings = settings.copy(maxTimeMinutes = if (filtered.isEmpty()) 0 else filtered.toInt())
+                        onSettingsChange(settings.copy(maxTimeMinutes = if (filtered.isEmpty()) 0 else filtered.toInt()))
                     },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("Ex: 10") }
+                    placeholder = { Text(stringResource(R.string.time_placeholder)) }
                 )
             }
         }
 
         Spacer(modifier = Modifier.weight(1f))
         Button(
-            onClick = { vm.startGame() },
+            onClick = onStartGame,
             modifier = Modifier.fillMaxWidth().height(56.dp),
             enabled = settings.player1.name.isNotBlank() && 
                       (settings.mode == GameMode.PLAYER_VS_AI || settings.player2.name.isNotBlank()) &&
                       settings.maxTimeMinutes > 0
         ) {
-            Text("▶  COMENÇAR PARTIDA!")
+            Text(stringResource(R.string.btn_start_game))
         }
-        TextButton(onClick = onBack) { Text("Cancel·lar") }
+        TextButton(onClick = onBack) { Text(stringResource(R.string.btn_cancel)) }
     }
 }
 
@@ -192,17 +226,21 @@ fun ColorPicker(selectedColor: Long, disabledColors: List<Long>, onColorSelected
 }
 
 @Composable
-fun MainGameScreen(vm: CheckersViewModel, onBack: () -> Unit) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val winner = vm.winner
-
+fun MainGameScreen(
+    settings: com.example.damas.data.models.GameSettings,
+    board: Board,
+    currentPlayer: Teams,
+    timeLeftSeconds: Long,
+    isAiThinking: Boolean,
+    winner: Teams?,
+    onCellClicked: (Int, Int) -> Unit,
+    onSurrender: () -> Unit,
+    onNavigateToResults: (String, String) -> Unit
+) {
     LaunchedEffect(winner) {
         if (winner != null) {
-            val winName = if (winner == PlayerColor.RED) vm.settings.player1.name else vm.settings.player2.name
-            val intent = Intent(context, ResultsActivity::class.java).apply {
-                putExtra("WINNER", winName)
-            }
-            context.startActivity(intent)
+            val winName = if (winner == Teams.RED) settings.player1.name else settings.player2.name
+            onNavigateToResults(winName, formatTime(timeLeftSeconds))
         }
     }
 
@@ -211,59 +249,75 @@ fun MainGameScreen(vm: CheckersViewModel, onBack: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        Text("Dames", style = MaterialTheme.typography.headlineMedium)
+        Text(stringResource(R.string.game_screen_title), style = MaterialTheme.typography.headlineMedium)
 
-        val turnName = if (vm.currentPlayer == PlayerColor.RED) vm.settings.player1.name else vm.settings.player2.name
-        val turnColor = Color(if (vm.currentPlayer == PlayerColor.RED) vm.settings.player1.colorHex else vm.settings.player2.colorHex)
+        val turnName = if (currentPlayer == Teams.RED) settings.player1.name else settings.player2.name
+        val turnColorHex = if (currentPlayer == Teams.RED) settings.player1.colorHex else settings.player2.colorHex
         
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("Torn de: $turnName", color = turnColor, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-            
-            // Comptador enrere
             Text(
-                text = "Temps restant: ${formatTime(vm.timeLeftSeconds)}",
-                color = if (vm.timeLeftSeconds < 30) Color.Red else Color.Unspecified,
-                fontWeight = if (vm.timeLeftSeconds < 30) FontWeight.Bold else FontWeight.Normal
+                text = stringResource(R.string.turn_label, turnName),
+                color = Color(turnColorHex),
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold
             )
             
-            if (vm.isAiThinking) {
+            Text(
+                text = stringResource(R.string.time_remaining_label, formatTime(timeLeftSeconds)),
+                color = if (timeLeftSeconds < 30) Color.Red else Color.Unspecified,
+                fontWeight = if (timeLeftSeconds < 30) FontWeight.Bold else FontWeight.Normal
+            )
+            
+            if (isAiThinking) {
                 Spacer(modifier = Modifier.height(8.dp))
                 LinearProgressIndicator(Modifier.width(100.dp))
             }
         }
 
-        CheckersBoard(vm)
+        CheckersBoard(
+            board = board,
+            player1Color = settings.player1.colorHex,
+            player2Color = settings.player2.colorHex,
+            onCellClicked = onCellClicked
+        )
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
             OutlinedButton(
-                onClick = { vm.surrender() },
+                onClick = onSurrender,
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red)
             ) { 
-                Text("Rendir-se") 
+                Text(stringResource(R.string.btn_surrender)) 
             }
         }
     }
 }
 
 @Composable
-fun CheckersBoard(vm: CheckersViewModel) {
+fun CheckersBoard(
+    board: Board,
+    player1Color: Long,
+    player2Color: Long,
+    onCellClicked: (Int, Int) -> Unit
+) {
     Column(modifier = Modifier.aspectRatio(1f).border(2.dp, Color.Gray)) {
-        vm.boardState.forEachIndexed { r, row ->
+        board.cells.forEachIndexed { r, row ->
             Row(modifier = Modifier.weight(1f)) {
-                row.forEachIndexed { c, sq ->
+                row.forEachIndexed { c, cell ->
                     val isLight = (r + c) % 2 == 0
                     Box(
                         modifier = Modifier.weight(1f).fillMaxHeight()
-                            .background(if (isLight) Color(0xFFF0D9B5) else Color(0xFFB58863))
-                            .run { if (sq.isSelected) border(3.dp, Color.Yellow) else this }
-                            .clickable { vm.onSquareClicked(r, c) },
+                            .background(if (isLight) BoardLight else BoardDark)
+                            .run { if (cell.isSelected) border(3.dp, SelectedSquare) else this }
+                            .clickable { onCellClicked(r, c) },
                         contentAlignment = Alignment.Center
                     ) {
-                        sq.piece?.let { piece ->
-                            val pColor = Color(if (piece.color == PlayerColor.RED) vm.settings.player1.colorHex else vm.settings.player2.colorHex)
+                        cell.piece?.let { piece ->
+                            val pColor = Color(if (piece.team == Teams.RED) player1Color else player2Color)
                             Canvas(modifier = Modifier.fillMaxSize(0.8f)) {
                                 drawCircle(color = pColor)
-                                if (piece.type == PieceType.QUEEN) drawCircle(color = Color.White, radius = size.minDimension / 4)
+                                if (piece.type == PieceType.QUEEN) {
+                                    drawCircle(color = Color.White, radius = size.minDimension / 4)
+                                }
                             }
                         }
                     }

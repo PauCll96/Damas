@@ -6,6 +6,9 @@ Este proyecto es una aplicación de Android completa para jugar a las **Damas**,
 
 ## 🚀 Análisis Detallado del Proyecto
 
+Para una explicación técnica profunda de la arquitectura, flujo de datos y lógica interna diseñada para ser leída por otros desarrolladores o IAs, consulta:
+👉 **[PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md)**
+
 El desarrollo se ha dividido en módulos claros para asegurar que el código sea legible, mantenible y, sobre todo, que cumpla con los estándares académicos de **Montserrat Sendín**.
 
 ### 1. Arquitectura MVVM y Gestión de Estado (Tema 3)
