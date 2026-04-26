@@ -12,16 +12,30 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Damas">
         <activity
-            android:name=".MainActivity"
+            android:name=".activities.MenuActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.Damas">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".activities.GameActivity"
+            android:exported="false"
+            android:label="@string/game_title"
+            android:theme="@style/Theme.Damas" />
+        <activity
+            android:name=".activities.HelpActivity"
+            android:exported="false"
+            android:label="@string/help_title"
+            android:theme="@style/Theme.Damas" />
+        <activity
+            android:name=".activities.ResultsActivity"
+            android:exported="false"
+            android:label="@string/results_title"
+            android:theme="@style/Theme.Damas" />
     </application>
 
 </manifest>

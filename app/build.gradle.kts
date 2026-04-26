@@ -57,3 +57,7 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
+
+tasks.register("unitTestClasses") {
+    dependsOn("compileDebugUnitTestSources")
+}

@@ -1,9 +1,46 @@
 <resources>
     <string name="app_name">Damas</string>
-    <string name="game_title">Joc de Dames</string>
-    <string name="turn_red">Torn: Vermell</string>
-    <string name="turn_black">Torn: Negre</string>
-    <string name="winner_red">¡Ha guanyat el jugador VERMELL!</string>
-    <string name="winner_black">¡Ha guanyat el jugador NEGRE!</string>
-    <string name="reset_button">Reiniciar partida</string>
+    <string name="game_title">Juego de Damas</string>
+    <string name="turn_red">Turno: Rojo</string>
+    <string name="turn_black">Turno: Negro</string>
+    <string name="winner_red">¡Ha ganado el jugador ROJO!</string>
+    <string name="winner_black">¡Ha ganado el jugador NEGRO!</string>
+    
+    <!-- Pantalla de Menú -->
+    <string name="menu_title">DAMAS</string>
+    <string name="btn_play">Partida Local (PvP)</string>
+    <string name="btn_play_ai">Partida vs IA</string>
+    <string name="btn_help">Ayuda</string>
+
+    <!-- Pantalla de Resultados -->
+    <string name="results_title">RESULTADOS PARTIDA</string>
+    <string name="help_title">Ayuda</string>
+    <string name="help_content">Bienvenido al juego de Damas.\n\nReglas básicas:\n1. El movimiento es diagonal.\n2. Se captura saltando sobre la pieza contraria.\n3. Si llegas al extremo opuesto, te conviertes en Reina.</string>
+    <string name="btn_back">Volver</string>
+    <string name="label_date">Día y hora</string>
+    <string name="label_log">Valores del Log</string>
+    <string name="label_email">E-mail destinatario</string>
+    <string name="btn_send_email">Enviar e-mail</string>
+    <string name="btn_new_game">Nueva partida</string>
+    <string name="btn_exit">Salir</string>
+    <string name="default_email"></string>
+    <string name="log_template">Alias: Jugador Tamaño tablero: 8x8 Ganador: %s</string>
+
+    <!-- Pantalla de Configuración -->
+    <string name="setup_title">Configuració de Partida</string>
+    <string name="player_1_label">Jugador 1</string>
+    <string name="player_2_label">Jugador 2</string>
+    <string name="name_label">Nom</string>
+    <string name="piece_color_label">Color de fitxes:</string>
+    <string name="ia_ready_label">IA a punt per jugar (Color: Negre)</string>
+    <string name="game_time_label">Temps de partida (minuts)</string>
+    <string name="time_placeholder">Ex: 10</string>
+    <string name="btn_start_game">▶  COMENÇAR PARTIDA!</string>
+    <string name="btn_cancel">Cancel·lar</string>
+
+    <!-- Pantalla de Juego -->
+    <string name="game_screen_title">Dames</string>
+    <string name="turn_label">Torn de: %s</string>
+    <string name="time_remaining_label">Temps restant: %s</string>
+    <string name="btn_surrender">Rendir-se</string>
 </resources>
