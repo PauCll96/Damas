@@ -213,5 +213,18 @@ class CheckersViewModel : ViewModel() {
         if (p.none { it.color == PlayerColor.BLACK }) winner = PlayerColor.RED
         if (p.none { it.color == PlayerColor.RED }) winner = PlayerColor.BLACK
     }
-    private fun startTimer() { viewModelScope.launch { while (true) { delay(1000); if (winner == null && isGameStarted) timeElapsed++ } } }
+    private fun startTimer() {
+        viewModelScope.launch {
+            while (true) {
+                delay(1000)
+                if (winner == null && isGameStarted) {
+                    timeElapsed++
+                    if (timeElapsed >= settings.maxTimeMinutes * 60L) {
+                        // Se acabó el tiempo
+                        winner = if (currentPlayer == PlayerColor.RED) PlayerColor.BLACK else PlayerColor.RED
+                    }
+                }
+            }
+        }
+    }
 }
