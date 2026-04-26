@@ -10,6 +10,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -24,6 +26,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import com.example.damas.ui.theme.DamasTheme
 
 class GameActivity : ComponentActivity() {
@@ -56,7 +60,10 @@ class GameActivity : ComponentActivity() {
 fun SetupScreen(vm: CheckersViewModel, onBack: () -> Unit) {
     val settings = vm.settings
     Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp)
+            .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -64,34 +71,83 @@ fun SetupScreen(vm: CheckersViewModel, onBack: () -> Unit) {
         
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text("Jugador 1", fontWeight = FontWeight.Bold)
-                TextField(value = settings.player1.name, onValueChange = { settings.player1 = settings.player1.copy(name = it) }, modifier = Modifier.fillMaxWidth())
-                ColorPicker(selectedColor = settings.player1.colorHex) { settings.player1 = settings.player1.copy(colorHex = it) }
+                Text("Jugador 1", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                TextField(
+                    value = settings.player1.name,
+                    onValueChange = { vm.settings = settings.copy(player1 = settings.player1.copy(name = it)) },
+                    label = { Text("Nombre") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("Color de fichas:", style = MaterialTheme.typography.bodySmall)
+                ColorPicker(
+                    selectedColor = settings.player1.colorHex,
+                    disabledColors = listOf(settings.player2.colorHex)
+                ) { 
+                    vm.settings = settings.copy(player1 = settings.player1.copy(colorHex = it))
+                }
             }
         }
 
         if (settings.mode == GameMode.PLAYER_VS_PLAYER) {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Jugador 2", fontWeight = FontWeight.Bold)
-                    TextField(value = settings.player2.name, onValueChange = { settings.player2 = settings.player2.copy(name = it) }, modifier = Modifier.fillMaxWidth())
-                    ColorPicker(selectedColor = settings.player2.colorHex) { settings.player2 = settings.player2.copy(colorHex = it) }
+                    Text("Jugador 2", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary)
+                    TextField(
+                        value = settings.player2.name,
+                        onValueChange = { vm.settings = settings.copy(player2 = settings.player2.copy(name = it)) },
+                        label = { Text("Nombre") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Color de fichas:", style = MaterialTheme.typography.bodySmall)
+                    ColorPicker(
+                        selectedColor = settings.player2.colorHex,
+                        disabledColors = listOf(settings.player1.colorHex)
+                    ) { 
+                        vm.settings = settings.copy(player2 = settings.player2.copy(colorHex = it))
+                    }
                 }
             }
         } else {
-            Text("IA lista para jugar", color = MaterialTheme.colorScheme.secondary)
-            LaunchedEffect(Unit) { settings.player2.name = "IA" }
+            Text("IA lista para jugar (Color: Negro)", color = MaterialTheme.colorScheme.secondary)
+            LaunchedEffect(settings.mode) { 
+                // Forzamos a la IA a ser Negro
+                val newP2 = settings.player2.copy(name = "IA", colorHex = 0xFF000000L)
+                // Si el jugador 1 ya era Negro, lo cambiamos a Rojo
+                val newP1 = if (settings.player1.colorHex == 0xFF000000L) {
+                    settings.player1.copy(colorHex = 0xFFFF0000L)
+                } else {
+                    settings.player1
+                }
+                vm.settings = settings.copy(player1 = newP1, player2 = newP2)
+            }
         }
 
         Card(modifier = Modifier.fillMaxWidth()) {
-            Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("Tiempo: ${settings.maxTimeMinutes} min", modifier = Modifier.weight(1f))
-                Slider(value = settings.maxTimeMinutes.toFloat(), onValueChange = { settings.maxTimeMinutes = it.toInt() }, valueRange = 1f..30f, modifier = Modifier.weight(1f))
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text("Tiempo de partida (minutos)", fontWeight = FontWeight.Bold)
+                TextField(
+                    value = if (settings.maxTimeMinutes == 0) "" else settings.maxTimeMinutes.toString(),
+                    onValueChange = { newValue ->
+                        val filtered = newValue.filter { it.isDigit() }
+                        vm.settings = settings.copy(maxTimeMinutes = if (filtered.isEmpty()) 0 else filtered.toInt())
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("Ej: 10") }
+                )
             }
         }
 
         Spacer(modifier = Modifier.weight(1f))
-        Button(onClick = { vm.startGame() }, modifier = Modifier.fillMaxWidth().height(56.dp)) {
+        Button(
+            onClick = { vm.startGame() },
+            modifier = Modifier.fillMaxWidth().height(56.dp),
+            enabled = settings.player1.name.isNotBlank() && 
+                      (settings.mode == GameMode.PLAYER_VS_AI || settings.player2.name.isNotBlank()) &&
+                      settings.maxTimeMinutes > 0
+        ) {
             Text("▶  ¡EMPEZAR PARTIDA!")
         }
         TextButton(onClick = onBack) { Text("Cancelar") }
@@ -99,15 +155,37 @@ fun SetupScreen(vm: CheckersViewModel, onBack: () -> Unit) {
 }
 
 @Composable
-fun ColorPicker(selectedColor: Long, onColorSelected: (Long) -> Unit) {
+fun ColorPicker(selectedColor: Long, disabledColors: List<Long>, onColorSelected: (Long) -> Unit) {
     val colors = listOf(0xFFFF0000, 0xFF0000FF, 0xFF00FF00, 0xFF000000, 0xFFFFA500)
-    Row(modifier = Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(
+        modifier = Modifier.padding(top = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
         colors.forEach { hex ->
+            val isSelected = selectedColor == hex
+            val isDisabled = disabledColors.contains(hex)
             Box(
-                modifier = Modifier.size(36.dp).clip(CircleShape).background(Color(hex))
-                    .border(2.dp, if (selectedColor == hex) Color.White else Color.Transparent, CircleShape)
-                    .clickable { onColorSelected(hex) }
-            )
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(if (isDisabled) Color.Gray.copy(alpha = 0.2f) else Color(hex))
+                    .border(
+                        width = if (isSelected) 3.dp else 1.dp,
+                        color = if (isSelected) MaterialTheme.colorScheme.primary else if (isDisabled) Color.Transparent else Color.Gray,
+                        shape = CircleShape
+                    )
+                    .clickable(enabled = !isDisabled) { onColorSelected(hex) },
+                contentAlignment = Alignment.Center
+            ) {
+                if (isSelected) {
+                    Text(
+                        text = "✓",
+                        color = if (hex == 0xFF000000L || hex == 0xFF0000FFL) Color.White else Color.Black,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
         }
     }
 }
@@ -146,7 +224,7 @@ fun MainGameScreen(vm: CheckersViewModel, onBack: () -> Unit) {
             val turnColor = Color(if (vm.currentPlayer == PlayerColor.RED) vm.settings.player1.colorHex else vm.settings.player2.colorHex)
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("Turno de: $turnName", color = turnColor, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                Text("Tiempo: ${formatTime(vm.timeElapsed)}")
+                Text("Tiempo restante: ${formatTime(vm.timeLeftSeconds)}")
                 if (vm.isAiThinking) LinearProgressIndicator(Modifier.width(100.dp))
             }
         }
