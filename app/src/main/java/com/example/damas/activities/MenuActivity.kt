@@ -42,6 +42,9 @@ class MenuActivity : ComponentActivity() {
                                 }
                             )
                         },
+                        onHistoryClick = {
+                            startActivity(Intent(this, HistoryActivity::class.java))
+                        },
                         onHelpClick = {
                             startActivity(Intent(this, HelpActivity::class.java))
                         },
@@ -55,10 +58,11 @@ class MenuActivity : ComponentActivity() {
 
 @Composable
 fun MenuScreen(
-    onPvPClick:  () -> Unit,
-    onPvAIClick: () -> Unit,
-    onHelpClick: () -> Unit,
-    onExitClick: () -> Unit
+    onPvPClick:     () -> Unit,
+    onPvAIClick:    () -> Unit,
+    onHistoryClick: () -> Unit,
+    onHelpClick:    () -> Unit,
+    onExitClick:    () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -73,13 +77,15 @@ fun MenuScreen(
             color = MaterialTheme.colorScheme.primary
         )
         Spacer(modifier = Modifier.height(48.dp))
-        MenuButton(text = stringResource(R.string.btn_play),    onClick = onPvPClick)
+        MenuButton(text = stringResource(R.string.btn_play),       onClick = onPvPClick)
         Spacer(modifier = Modifier.height(16.dp))
-        MenuButton(text = stringResource(R.string.btn_play_ai), onClick = onPvAIClick)
+        MenuButton(text = stringResource(R.string.btn_play_ai),    onClick = onPvAIClick)
         Spacer(modifier = Modifier.height(16.dp))
-        MenuButton(text = stringResource(R.string.btn_help),    onClick = onHelpClick)
+        MenuButton(text = stringResource(R.string.btn_history),    onClick = onHistoryClick)
         Spacer(modifier = Modifier.height(16.dp))
-        MenuButton(text = stringResource(R.string.btn_exit),    onClick = onExitClick)
+        MenuButton(text = stringResource(R.string.btn_help),       onClick = onHelpClick)
+        Spacer(modifier = Modifier.height(16.dp))
+        MenuButton(text = stringResource(R.string.btn_exit),       onClick = onExitClick)
     }
 }
 

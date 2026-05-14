@@ -23,3 +23,13 @@ data class AiMove(
     val endCol: Int,
     val captures: List<Pair<Int, Int>> = emptyList()
 )
+
+/** Resultado de una partida completada, usado en el historial */
+data class GameResult(
+    val id: Int = 0,
+    val date: String,
+    val winnerName: String,
+    val timeLeft: String,
+    val player1Name: String,
+    val player2Name: String
+)

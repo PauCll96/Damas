@@ -36,6 +36,16 @@
             android:exported="false"
             android:label="@string/results_title"
             android:theme="@style/Theme.Damas" />
+        <activity
+            android:name=".activities.HistoryActivity"
+            android:exported="false"
+            android:label="@string/history_title"
+            android:theme="@style/Theme.Damas" />
+        <activity
+            android:name=".activities.GameDetailActivity"
+            android:exported="false"
+            android:label="@string/detail_title"
+            android:theme="@style/Theme.Damas" />
     </application>
 
 </manifest>

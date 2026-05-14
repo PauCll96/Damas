@@ -13,19 +13,41 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.example.damas.data.local.GameHistoryRepository
+import com.example.damas.data.models.GameResult
 import com.example.damas.ui.theme.DamasTheme
 import java.text.SimpleDateFormat
 import java.util.*
 
 class ResultsActivity : ComponentActivity() {
+    companion object {
+        const val EXTRA_WINNER    = "WINNER"
+        const val EXTRA_TIME_LEFT = "TIME_LEFT"
+        const val EXTRA_PLAYER1   = "PLAYER1"
+        const val EXTRA_PLAYER2   = "PLAYER2"
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+
         // Rebem qui ha guanyat i el temps per Intent
-        val winner = intent.getStringExtra("WINNER") ?: "Desconegut"
-        val timeLeft = intent.getStringExtra("TIME_LEFT") ?: "00:00"
-        val date = SimpleDateFormat("dd/MM/yy, HH:mm", Locale.getDefault()).format(Date())
-        
+        val winner   = intent.getStringExtra(EXTRA_WINNER)   ?: "Desconegut"
+        val timeLeft = intent.getStringExtra(EXTRA_TIME_LEFT) ?: "00:00"
+        val player1  = intent.getStringExtra(EXTRA_PLAYER1)  ?: ""
+        val player2  = intent.getStringExtra(EXTRA_PLAYER2)  ?: ""
+        val date     = SimpleDateFormat("dd/MM/yy, HH:mm", Locale.getDefault()).format(Date())
+
+        // Guardar al repositorio singleton para el historial
+        GameHistoryRepository.addGame(
+            GameResult(
+                date       = date,
+                winnerName = winner,
+                timeLeft   = timeLeft,
+                player1Name = player1,
+                player2Name = player2
+            )
+        )
+
         val logContent = getString(R.string.log_template, winner) + "\nTemps restant: $timeLeft"
 
         setContent {
