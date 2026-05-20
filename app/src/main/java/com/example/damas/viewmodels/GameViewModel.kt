@@ -15,12 +15,14 @@ import kotlinx.coroutines.launch
 
 class GameViewModel : ViewModel() {
 
-    // --- CONFIGURACIÓN Y LOBBY ---
+    // --- CONFIGURACIÓN ---
     var settings by mutableStateOf(GameSettings())
+        private set
+
     var isGameStarted by mutableStateOf(false)
         private set
 
-    // --- ESTADO ---
+    // --- ESTADO DEL TABLERO ---
     var board by mutableStateOf(Board())
         private set
 
@@ -36,7 +38,10 @@ class GameViewModel : ViewModel() {
     var isAiThinking by mutableStateOf(false)
         private set
 
-    // Pieza que debe continuar capturando (encadenamiento)
+    // --- LOG DE MOVIMIENTOS (1.4) ---
+    var moveLog by mutableStateOf<List<String>>(emptyList())
+        private set
+
     private var activeMultiCapturePiece by mutableStateOf<Cell?>(null)
 
     val aiColor = Teams.BLACK
@@ -46,17 +51,26 @@ class GameViewModel : ViewModel() {
             while (true) {
                 delay(1000)
                 if (winner == null && isGameStarted) {
-                    if (timeLeftSeconds > 0) {
-                        timeLeftSeconds--
-                    } else {
-                        onTimeUp()
-                    }
+                    if (timeLeftSeconds > 0) timeLeftSeconds-- else onTimeUp()
                 }
             }
         }
     }
 
-    // --- ACCIONES DE PARTIDA ---
+    // ── CONFIGURACIÓN ─────────────────────────────────────────────────────────
+
+    /** Actualización de ajustes desde la UI — único punto de escritura externo (2.13) */
+    fun updateSettings(newSettings: GameSettings) {
+        settings = newSettings
+    }
+
+    /** Establece el modo de juego antes de iniciar (llamado desde NavHost) */
+    fun initMode(mode: GameMode) {
+        if (!isGameStarted) settings = settings.copy(mode = mode)
+    }
+
+    // ── ACCIONES DE PARTIDA ────────────────────────────────────────────────────
+
     fun startGame() {
         board = Board()
         currentPlayer = Teams.RED
@@ -65,6 +79,7 @@ class GameViewModel : ViewModel() {
         isAiThinking = false
         activeMultiCapturePiece = null
         isGameStarted = true
+        moveLog = listOf("▶ Partida iniciada — Torn de: ${settings.player1.name}")
     }
 
     fun resetToMenu() {
@@ -72,15 +87,18 @@ class GameViewModel : ViewModel() {
     }
 
     fun surrender() {
+        val loserName  = playerName(currentPlayer)
         winner = if (currentPlayer == Teams.RED) Teams.BLACK else Teams.RED
+        logEvent("🏳 $loserName es va rendir. Guanyador: ${playerName(winner!!)}")
     }
 
-    // --- INTERACCIÓN ---
+    // ── INTERACCIÓ ────────────────────────────────────────────────────────────
+
     fun onCellClicked(row: Int, col: Int) {
         if (winner != null || isAiThinking || !isGameStarted) return
         if (settings.mode == GameMode.PLAYER_VS_AI && currentPlayer == Teams.BLACK) return
 
-        val clicked = board.getCell(row, col)
+        val clicked  = board.getCell(row, col)
         val selected = findSelectedCell()
 
         if (activeMultiCapturePiece != null) {
@@ -97,8 +115,7 @@ class GameViewModel : ViewModel() {
             val move = GameRules.getMoveType(board.cells, selected, row, col)
             if (move != MoveType.Invalid) {
                 if (GameRules.hasAnyCapture(board.cells, currentPlayer) && move is MoveType.Simple) {
-                    clearSelection()
-                    return
+                    clearSelection(); return
                 }
                 executeMove(selected, row, col, move)
             } else {
@@ -111,23 +128,14 @@ class GameViewModel : ViewModel() {
         }
     }
 
+    // ── EJECUCIÓ DE MOVIMENTS ──────────────────────────────────────────────────
+
     private fun executeMove(from: Cell, toR: Int, toC: Int, move: MoveType) {
-        val piece = from.piece ?: return
-        val newCells = Array(8) { r ->
-            Array(8) { c ->
-                val cell = board.cells[r][c]
-                when {
-                    r == from.row && c == from.col -> cell.copy(piece = null, isSelected = false)
-                    r == toR && c == toC -> {
-                        val promoted = (toR == 0 && piece.team == Teams.RED) || (toR == 7 && piece.team == Teams.BLACK)
-                        cell.copy(piece = piece.copy(type = if (promoted) PieceType.QUEEN else piece.type), isSelected = false)
-                    }
-                    move is MoveType.Capture && r == move.victimRow && c == move.victimCol -> cell.copy(piece = null)
-                    else -> cell.copy(isSelected = false)
-                }
-            }
-        }
-        board = board.copy(cells = newCells)
+        val piece    = from.piece ?: return
+        val promoted = isPromotion(piece, toR)
+
+        board = Board(buildNewCells(from, toR, toC, move, piece, promoted))
+        logMove(from, toR, toC, move, piece, promoted)
 
         if (move is MoveType.Capture && GameRules.canPieceCapture(board.cells, board.getCell(toR, toC))) {
             activeMultiCapturePiece = board.getCell(toR, toC)
@@ -140,72 +148,117 @@ class GameViewModel : ViewModel() {
         checkGameEnd()
         if (winner == null) {
             currentPlayer = if (currentPlayer == Teams.RED) Teams.BLACK else Teams.RED
+            logEvent("► Torn de: ${playerName(currentPlayer)}")
             if (settings.mode == GameMode.PLAYER_VS_AI && currentPlayer == Teams.BLACK) runAi()
         }
     }
+
+    // ── HELPERS DE TABLERO (2.4) ───────────────────────────────────────────────
+
+    /** Construye la nueva matriz de celdas tras un movimiento — función pura */
+    private fun buildNewCells(
+        from: Cell, toR: Int, toC: Int,
+        move: MoveType,
+        piece: com.example.damas.data.local.Piece,
+        promoted: Boolean
+    ): Array<Array<Cell>> = Array(8) { r ->
+        Array(8) { c ->
+            val cell = board.cells[r][c]
+            when {
+                r == from.row && c == from.col ->
+                    cell.copy(piece = null, isSelected = false)
+                r == toR && c == toC ->
+                    cell.copy(piece = piece.copy(type = if (promoted) PieceType.QUEEN else piece.type), isSelected = false)
+                move is MoveType.Capture && r == move.victimRow && c == move.victimCol ->
+                    cell.copy(piece = null)
+                else ->
+                    cell.copy(isSelected = false)
+            }
+        }
+    }
+
+    /** Comprueba si la pieza debe coronarse al llegar a [toRow] */
+    private fun isPromotion(piece: com.example.damas.data.local.Piece, toRow: Int): Boolean =
+        (toRow == 0 && piece.team == Teams.RED) || (toRow == 7 && piece.team == Teams.BLACK)
+
+    private fun checkGameEnd() {
+        val w = GameRules.checkWinner(board.cells)
+        winner = w
+        if (w != null) logEvent("🏆 Guanyador: ${playerName(w)}")
+    }
+
+    private fun onTimeUp() {
+        if (winner != null) return
+        logEvent("⏰ Temps esgotat")
+        val pieces     = board.flatten().mapNotNull { it.piece }
+        val redCount   = pieces.count { it.team == Teams.RED }
+        val blackCount = pieces.count { it.team == Teams.BLACK }
+        winner = when {
+            redCount  > blackCount -> Teams.RED
+            blackCount > redCount  -> Teams.BLACK
+            else -> null
+        }
+        if (winner != null) {
+            logEvent("🏆 Guanyador per peces: ${playerName(winner!!)}")
+        } else {
+            isGameStarted = false
+            logEvent("Empat — mateixes peces restants")
+        }
+    }
+
+    // ── IA ─────────────────────────────────────────────────────────────────────
 
     private fun runAi() {
         isAiThinking = true
         viewModelScope.launch {
             delay(if (activeMultiCapturePiece != null) 400 else 800)
-            val pieces = if (activeMultiCapturePiece != null) listOf(activeMultiCapturePiece!!) else board.flatten().filter { it.piece?.team == Teams.BLACK }
-            val caps = mutableListOf<Triple<Cell, Int, Int>>()
-            val moves = mutableListOf<Triple<Cell, Int, Int>>()
-            for (sq in pieces) {
-                val range = if (sq.piece?.type == PieceType.QUEEN) 1..7 else 1..2
-                for (dr in listOf(-1, 1)) for (dc in listOf(-1, 1)) for (dist in range) {
-                    val tr = sq.row + dr * dist
-                    val tc = sq.col + dc * dist
-                    if (tr in 0..7 && tc in 0..7) {
-                        val m = GameRules.getMoveType(board.cells, sq, tr, tc)
-                        if (m is MoveType.Capture) caps.add(Triple(sq, tr, tc)) else if (m is MoveType.Simple) moves.add(Triple(sq, tr, tc))
-                    }
-                }
+            val sel = GameLogic.calculateAiMove(board.cells, activeMultiCapturePiece)
+            if (sel != null) {
+                val move = GameRules.getMoveType(board.cells, sel.first, sel.second, sel.third)
+                executeMove(sel.first, sel.second, sel.third, move)
+            } else if (activeMultiCapturePiece == null) {
+                winner = Teams.RED
+                logEvent("🏆 IA sense moviments. Guanyador: ${playerName(Teams.RED)}")
             }
-            val sel = if (caps.isNotEmpty()) caps.random() else if (moves.isNotEmpty() && !GameRules.hasAnyCapture(board.cells, Teams.BLACK)) moves.random() else null
-            if (sel != null) executeMove(sel.first, sel.second, sel.third, GameRules.getMoveType(board.cells, sel.first, sel.second, sel.third))
-            else if (activeMultiCapturePiece == null) winner = Teams.RED
             isAiThinking = false
         }
     }
 
+    // ── SELECCIÓ ───────────────────────────────────────────────────────────────
+
     private fun findSelectedCell() = board.flatten().find { it.isSelected }
 
     private fun selectCell(r: Int, c: Int) {
-        val newCells = Array(8) { ri ->
-            Array(8) { ci ->
-                board.cells[ri][ci].copy(isSelected = ri == r && ci == c)
-            }
-        }
-        board = board.copy(cells = newCells)
+        board = Board(Array(8) { ri -> Array(8) { ci ->
+            board.cells[ri][ci].copy(isSelected = ri == r && ci == c)
+        }})
     }
 
     private fun clearSelection() {
-        val newCells = Array(8) { r ->
-            Array(8) { c ->
-                board.cells[r][c].copy(isSelected = false)
-            }
-        }
-        board = board.copy(cells = newCells)
+        board = Board(Array(8) { r -> Array(8) { c ->
+            board.cells[r][c].copy(isSelected = false)
+        }})
     }
 
-    private fun checkGameEnd() {
-        winner = GameRules.checkWinner(board.cells)
+    // ── LOG (1.4) ──────────────────────────────────────────────────────────────
+
+    private fun logEvent(msg: String) { moveLog = moveLog + msg }
+
+    private fun logMove(
+        from: Cell, toR: Int, toC: Int,
+        move: MoveType,
+        piece: com.example.damas.data.local.Piece,
+        promoted: Boolean
+    ) {
+        val name        = playerName(piece.team)
+        val captureNote = if (move is MoveType.Capture) " ✕${pos(move.victimRow, move.victimCol)}" else ""
+        val promoNote   = if (promoted) " ♛" else ""
+        logEvent("$name: ${pos(from.row, from.col)}→${pos(toR, toC)}$captureNote$promoNote")
     }
 
-    private fun onTimeUp() {
-        if (winner != null) return
-        val pieces = board.flatten().mapNotNull { it.piece }
-        val redCount = pieces.count { it.team == Teams.RED }
-        val blackCount = pieces.count { it.team == Teams.BLACK }
+    /** Convierte coordenadas a notación tipo ajedrez: (0,0) → a8 */
+    private fun pos(row: Int, col: Int) = "${'a' + col}${8 - row}"
 
-        winner = when {
-            redCount > blackCount -> Teams.RED
-            blackCount > redCount -> Teams.BLACK
-            else -> null
-        }
-        if (winner == null && redCount == blackCount) {
-             isGameStarted = false
-        }
-    }
+    private fun playerName(team: Teams) =
+        if (team == Teams.RED) settings.player1.name else settings.player2.name
 }

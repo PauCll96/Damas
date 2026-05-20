@@ -31,5 +31,6 @@ data class GameResult(
     val winnerName: String,
     val timeLeft: String,
     val player1Name: String,
-    val player2Name: String
+    val player2Name: String,
+    val moveLog: String = ""  // log completo de movimientos (1.4)
 )

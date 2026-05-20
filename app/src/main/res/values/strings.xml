@@ -43,6 +43,8 @@
     <string name="turn_label">Torn de: %s</string>
     <string name="time_remaining_label">Temps restant: %s</string>
     <string name="btn_surrender">Rendir-se</string>
+    <!-- (1.11) Puntuació visible durant la partida -->
+    <string name="pieces_score_label">%s: %d  |  %s: %d</string>
 
     <!-- Panel de estadísticas (tablet bi-panel) -->
     <string name="stats_panel_title">Estadístiques</string>

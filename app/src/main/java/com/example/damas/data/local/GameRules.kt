@@ -23,11 +23,13 @@ object GameRules {
         val dc = colDiff / absCD
 
         if (piece.type == PieceType.NORMAL) {
+            val forward = if (piece.team == Teams.RED) -1 else 1
             if (absRD == 1) {
-                val forward = if (piece.team == Teams.RED) -1 else 1
                 return if (dr == forward) MoveType.Simple else MoveType.Invalid
             }
             if (absRD == 2) {
+                // Las piezas normales solo avanzan (captura y movimiento en la misma dirección)
+                if (dr != forward) return MoveType.Invalid
                 val midR = from.row + dr
                 val midC = from.col + dc
                 val midP = board[midR][midC].piece
