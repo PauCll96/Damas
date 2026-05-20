@@ -46,6 +46,11 @@
             android:exported="false"
             android:label="@string/detail_title"
             android:theme="@style/Theme.Damas" />
+        <activity
+            android:name=".activities.SettingsActivity"
+            android:exported="false"
+            android:label="@string/settings_title"
+            android:theme="@style/Theme.Damas" />
     </application>
 
 </manifest>

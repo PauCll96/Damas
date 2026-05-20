@@ -15,43 +15,58 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.example.damas.R
-import com.example.damas.data.local.GameHistoryRepository
-import com.example.damas.data.models.GameResult
+import com.example.damas.data.local.GameRecord
+import com.example.damas.data.local.GameRecordRepository
 import com.example.damas.ui.theme.DamasTheme
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
 class ResultsActivity : ComponentActivity() {
     companion object {
-        const val EXTRA_WINNER    = "WINNER"
-        const val EXTRA_TIME_LEFT = "TIME_LEFT"
-        const val EXTRA_PLAYER1   = "PLAYER1"
-        const val EXTRA_PLAYER2   = "PLAYER2"
-        const val EXTRA_LOG       = "MOVE_LOG"
+        const val EXTRA_WINNER      = "WINNER"
+        const val EXTRA_TIME_LEFT   = "TIME_LEFT"
+        const val EXTRA_PLAYER1     = "PLAYER1"
+        const val EXTRA_PLAYER2     = "PLAYER2"
+        const val EXTRA_LOG         = "MOVE_LOG"
+        const val EXTRA_MODE        = "GAME_MODE"
+        const val EXTRA_RED_PIECES  = "RED_PIECES"
+        const val EXTRA_BLACK_PIECES = "BLACK_PIECES"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val winner   = intent.getStringExtra(EXTRA_WINNER)    ?: "Desconegut"
-        val timeLeft = intent.getStringExtra(EXTRA_TIME_LEFT) ?: "00:00"
-        val player1  = intent.getStringExtra(EXTRA_PLAYER1)   ?: ""
-        val player2  = intent.getStringExtra(EXTRA_PLAYER2)   ?: ""
-        val moveLog  = intent.getStringExtra(EXTRA_LOG)       ?: ""
-        val date     = SimpleDateFormat("dd/MM/yy, HH:mm", Locale.getDefault()).format(Date())
+        val winner     = intent.getStringExtra(EXTRA_WINNER)      ?: "Desconegut"
+        val timeLeft   = intent.getStringExtra(EXTRA_TIME_LEFT)   ?: "00:00"
+        val player1    = intent.getStringExtra(EXTRA_PLAYER1)     ?: ""
+        val player2    = intent.getStringExtra(EXTRA_PLAYER2)     ?: ""
+        val moveLog    = intent.getStringExtra(EXTRA_LOG)         ?: ""
+        val gameMode   = intent.getStringExtra(EXTRA_MODE)        ?: "PLAYER_VS_PLAYER"
+        val redPieces  = intent.getIntExtra(EXTRA_RED_PIECES,  0)
+        val blackPieces = intent.getIntExtra(EXTRA_BLACK_PIECES, 0)
+        val date       = SimpleDateFormat("dd/MM/yy, HH:mm", Locale.getDefault()).format(Date())
 
-        // Guardar al repositorio solo la primera vez (evita duplicado en rotación)
+        // Guardar en Room solo la primera vez (evita duplicado en rotación de pantalla)
         if (savedInstanceState == null) {
-            GameHistoryRepository.addGame(
-                GameResult(
-                    date        = date,
-                    winnerName  = winner,
-                    timeLeft    = timeLeft,
-                    player1Name = player1,
-                    player2Name = player2,
-                    moveLog     = moveLog
+            val repository = GameRecordRepository.getInstance(applicationContext)
+            CoroutineScope(Dispatchers.IO).launch {
+                repository.insert(
+                    GameRecord(
+                        date        = date,
+                        player1Name = player1,
+                        player2Name = player2,
+                        winnerName  = winner,
+                        gameMode    = gameMode,
+                        timeLeft    = timeLeft,
+                        redPieces   = redPieces,
+                        blackPieces = blackPieces,
+                        moveLog     = moveLog
+                    )
                 )
-            )
+            }
         }
 
         val logDisplay = moveLog.ifBlank {
@@ -61,8 +76,8 @@ class ResultsActivity : ComponentActivity() {
         setContent {
             DamasTheme {
                 ResultsScreen(
-                    date       = date,
-                    log        = logDisplay,
+                    date        = date,
+                    log         = logDisplay,
                     onSendEmail = { email, body -> sendEmail(email, body) },
                     onNewGame   = {
                         startActivity(

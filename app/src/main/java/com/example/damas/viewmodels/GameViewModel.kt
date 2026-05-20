@@ -1,9 +1,10 @@
 package com.example.damas.viewmodels
 
+import android.app.Application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.damas.data.constants.GameMode
 import com.example.damas.data.constants.PieceType
@@ -11,15 +12,23 @@ import com.example.damas.data.constants.Teams
 import com.example.damas.data.local.*
 import com.example.damas.data.models.*
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
-class GameViewModel : ViewModel() {
+// (2.13) AndroidViewModel para acceder al contexto de aplicación (DataStore)
+class GameViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val repository = UserPreferencesRepository.getInstance(application)
 
     // --- CONFIGURACIÓN ---
     var settings by mutableStateOf(GameSettings())
         private set
 
     var isGameStarted by mutableStateOf(false)
+        private set
+
+    /** true cuando las preferencias se han cargado de DataStore */
+    var isSettingsLoaded by mutableStateOf(false)
         private set
 
     // --- ESTADO DEL TABLERO ---
@@ -42,11 +51,24 @@ class GameViewModel : ViewModel() {
     var moveLog by mutableStateOf<List<String>>(emptyList())
         private set
 
+    // Piezas restantes al finalizar (enviadas a ResultsActivity para guardar en Room)
+    var finalRedPieces by mutableStateOf(0)
+        private set
+    var finalBlackPieces by mutableStateOf(0)
+        private set
+
     private var activeMultiCapturePiece by mutableStateOf<Cell?>(null)
 
     val aiColor = Teams.BLACK
 
     init {
+        // Cargar preferencias persistidas antes de arrancar
+        viewModelScope.launch {
+            val saved = repository.settingsFlow.first()
+            settings = saved
+            isSettingsLoaded = true
+        }
+        // Temporizador de partida
         viewModelScope.launch {
             while (true) {
                 delay(1000)
@@ -59,12 +81,7 @@ class GameViewModel : ViewModel() {
 
     // ── CONFIGURACIÓN ─────────────────────────────────────────────────────────
 
-    /** Actualización de ajustes desde la UI — único punto de escritura externo (2.13) */
-    fun updateSettings(newSettings: GameSettings) {
-        settings = newSettings
-    }
-
-    /** Establece el modo de juego antes de iniciar (llamado desde NavHost) */
+    /** Establece el modo antes de iniciar — solo modifica el campo mode */
     fun initMode(mode: GameMode) {
         if (!isGameStarted) settings = settings.copy(mode = mode)
     }
@@ -72,14 +89,22 @@ class GameViewModel : ViewModel() {
     // ── ACCIONES DE PARTIDA ────────────────────────────────────────────────────
 
     fun startGame() {
-        board = Board()
-        currentPlayer = Teams.RED
-        winner = null
-        timeLeftSeconds = settings.maxTimeMinutes * 60L
-        isAiThinking = false
+        // En modo IA el jugador 2 siempre es la IA con color negro
+        val effectiveSettings = if (settings.mode == GameMode.PLAYER_VS_AI) {
+            val p1 = if (settings.player1.colorHex == 0xFF000000L)
+                settings.player1.copy(colorHex = 0xFFFF0000L) else settings.player1
+            settings.copy(player1 = p1, player2 = PlayerSettings("IA", 0xFF000000L))
+        } else settings
+
+        settings             = effectiveSettings
+        board                = Board()
+        currentPlayer        = Teams.RED
+        winner               = null
+        timeLeftSeconds      = settings.maxTimeMinutes * 60L
+        isAiThinking         = false
         activeMultiCapturePiece = null
-        isGameStarted = true
-        moveLog = listOf("▶ Partida iniciada — Torn de: ${settings.player1.name}")
+        isGameStarted        = true
+        moveLog              = listOf("▶ Partida iniciada — Torn de: ${settings.player1.name}")
     }
 
     fun resetToMenu() {
@@ -87,7 +112,7 @@ class GameViewModel : ViewModel() {
     }
 
     fun surrender() {
-        val loserName  = playerName(currentPlayer)
+        val loserName = playerName(currentPlayer)
         winner = if (currentPlayer == Teams.RED) Teams.BLACK else Teams.RED
         logEvent("🏳 $loserName es va rendir. Guanyador: ${playerName(winner!!)}")
     }
@@ -159,7 +184,7 @@ class GameViewModel : ViewModel() {
     private fun buildNewCells(
         from: Cell, toR: Int, toC: Int,
         move: MoveType,
-        piece: com.example.damas.data.local.Piece,
+        piece: Piece,
         promoted: Boolean
     ): Array<Array<Cell>> = Array(8) { r ->
         Array(8) { c ->
@@ -178,13 +203,20 @@ class GameViewModel : ViewModel() {
     }
 
     /** Comprueba si la pieza debe coronarse al llegar a [toRow] */
-    private fun isPromotion(piece: com.example.damas.data.local.Piece, toRow: Int): Boolean =
+    private fun isPromotion(piece: Piece, toRow: Int): Boolean =
         (toRow == 0 && piece.team == Teams.RED) || (toRow == 7 && piece.team == Teams.BLACK)
 
     private fun checkGameEnd() {
         val w = GameRules.checkWinner(board.cells)
         winner = w
-        if (w != null) logEvent("🏆 Guanyador: ${playerName(w)}")
+        if (w != null) {
+            val pieces     = board.flatten().mapNotNull { it.piece }
+            val redCount   = pieces.count { it.team == Teams.RED }
+            val blackCount = pieces.count { it.team == Teams.BLACK }
+            finalRedPieces   = redCount
+            finalBlackPieces = blackCount
+            logEvent("🏆 Guanyador: ${playerName(w)} — ${settings.player1.name}: $redCount peces, ${settings.player2.name}: $blackCount peces")
+        }
     }
 
     private fun onTimeUp() {
@@ -193,6 +225,8 @@ class GameViewModel : ViewModel() {
         val pieces     = board.flatten().mapNotNull { it.piece }
         val redCount   = pieces.count { it.team == Teams.RED }
         val blackCount = pieces.count { it.team == Teams.BLACK }
+        finalRedPieces   = redCount
+        finalBlackPieces = blackCount
         winner = when {
             redCount  > blackCount -> Teams.RED
             blackCount > redCount  -> Teams.BLACK
@@ -213,12 +247,25 @@ class GameViewModel : ViewModel() {
         viewModelScope.launch {
             delay(if (activeMultiCapturePiece != null) 400 else 800)
             val sel = GameLogic.calculateAiMove(board.cells, activeMultiCapturePiece)
-            if (sel != null) {
-                val move = GameRules.getMoveType(board.cells, sel.first, sel.second, sel.third)
-                executeMove(sel.first, sel.second, sel.third, move)
-            } else if (activeMultiCapturePiece == null) {
-                winner = Teams.RED
-                logEvent("🏆 IA sense moviments. Guanyador: ${playerName(Teams.RED)}")
+            when {
+                sel != null -> {
+                    val move = GameRules.getMoveType(board.cells, sel.first, sel.second, sel.third)
+                    executeMove(sel.first, sel.second, sel.third, move)
+                }
+                activeMultiCapturePiece != null -> {
+                    // La peça ja no pot seguir capturant: fi de cadena multi-captura
+                    activeMultiCapturePiece = null
+                    clearSelection()
+                    checkGameEnd()
+                    if (winner == null) {
+                        currentPlayer = Teams.RED
+                        logEvent("► Torn de: ${playerName(Teams.RED)}")
+                    }
+                }
+                else -> {
+                    winner = Teams.RED
+                    logEvent("🏆 IA sense moviments. Guanyador: ${playerName(Teams.RED)}")
+                }
             }
             isAiThinking = false
         }
@@ -247,13 +294,13 @@ class GameViewModel : ViewModel() {
     private fun logMove(
         from: Cell, toR: Int, toC: Int,
         move: MoveType,
-        piece: com.example.damas.data.local.Piece,
+        piece: Piece,
         promoted: Boolean
     ) {
         val name        = playerName(piece.team)
         val captureNote = if (move is MoveType.Capture) " ✕${pos(move.victimRow, move.victimCol)}" else ""
-        val promoNote   = if (promoted) " ♛" else ""
-        logEvent("$name: ${pos(from.row, from.col)}→${pos(toR, toC)}$captureNote$promoNote")
+        logEvent("$name: ${pos(from.row, from.col)}→${pos(toR, toC)}$captureNote")
+        if (promoted) logEvent("♛ $name corona peça a ${pos(toR, toC)}")
     }
 
     /** Convierte coordenadas a notación tipo ajedrez: (0,0) → a8 */

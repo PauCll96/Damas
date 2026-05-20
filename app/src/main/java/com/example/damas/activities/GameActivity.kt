@@ -11,10 +11,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,14 +20,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavHostController
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
 import com.example.damas.R
 import com.example.damas.data.constants.GameMode
 import com.example.damas.data.constants.PieceType
@@ -46,209 +38,59 @@ class GameActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
         val initialMode = GameMode.valueOf(
             intent.getStringExtra(EXTRA_MODE) ?: GameMode.PLAYER_VS_PLAYER.name
         )
+
         // (3.4) setContent lo más simple posible: solo delega al composable raíz
         setContent {
             DamasTheme {
                 val vm: GameViewModel = viewModel()
-                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    GameNavHost(
-                        navController    = rememberNavController(),
-                        vm               = vm,
-                        initialMode      = initialMode,
-                        onBack           = { finish() },
-                        onNavigateToResults = { winName, time ->
-                            startActivity(Intent(this, ResultsActivity::class.java).apply {
-                                putExtra(ResultsActivity.EXTRA_WINNER,    winName)
-                                putExtra(ResultsActivity.EXTRA_TIME_LEFT, time)
-                                putExtra(ResultsActivity.EXTRA_PLAYER1,   vm.settings.player1.name)
-                                putExtra(ResultsActivity.EXTRA_PLAYER2,   vm.settings.player2.name)
-                                putExtra(ResultsActivity.EXTRA_LOG,       vm.moveLog.joinToString("\n"))
-                            })
-                            finish()  // evita volver a una partida ya terminada
-                        }
-                    )
-                }
-            }
-        }
-    }
-}
 
-// ── MAPA DE NAVEGACIÓ (1.20) ───────────────────────────────────────────────────
-
-@Composable
-fun GameNavHost(
-    navController:       NavHostController,
-    vm:                  GameViewModel,
-    initialMode:         GameMode,
-    onBack:              () -> Unit,
-    onNavigateToResults: (String, String) -> Unit
-) {
-    // Inicializa el modo una sola vez al entrar en la Activity
-    LaunchedEffect(initialMode) { vm.initMode(initialMode) }
-
-    NavHost(navController = navController, startDestination = "setup") {
-
-        // Pantalla de configuración — Ruta "setup"
-        composable("setup") {
-            SetupScreen(
-                settings        = vm.settings,
-                onSettingsChange = { vm.updateSettings(it) },
-                onStartGame     = {
-                    vm.startGame()
-                    navController.navigate("game") {
-                        popUpTo("setup") { inclusive = true }  // setup no queda en la pila
+                // Arranca la partida en cuanto DataStore carga las preferencias guardadas
+                LaunchedEffect(vm.isSettingsLoaded) {
+                    if (vm.isSettingsLoaded && !vm.isGameStarted) {
+                        vm.initMode(initialMode)
+                        vm.startGame()
                     }
-                },
-                onBack = onBack
-            )
-        }
-
-        // Pantalla de juego — Ruta "game"
-        composable("game") {
-            BackHandler { /* bloquea el retroceso accidental durante la partida */ }
-            MainGameScreen(
-                settings             = vm.settings,
-                board                = vm.board,
-                currentPlayer        = vm.currentPlayer,
-                timeLeftSeconds      = vm.timeLeftSeconds,
-                isAiThinking         = vm.isAiThinking,
-                winner               = vm.winner,
-                isTwoPanel           = rememberIsTwoPanel(),
-                onCellClicked        = { r, c -> vm.onCellClicked(r, c) },
-                onSurrender          = { vm.surrender() },
-                onNavigateToResults  = onNavigateToResults
-            )
-        }
-    }
-}
-
-// ── PANTALLA DE CONFIGURACIÓ ───────────────────────────────────────────────────
-
-@Composable
-fun SetupScreen(
-    settings:         com.example.damas.data.models.GameSettings,
-    onSettingsChange: (com.example.damas.data.models.GameSettings) -> Unit,
-    onStartGame:      () -> Unit,
-    onBack:           () -> Unit
-) {
-    // (3.1) Column scrollable: Spacer.weight() aquí causa crash. Usamos altura fija.
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp)
-            .verticalScroll(rememberScrollState()),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Text(stringResource(R.string.setup_title), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(stringResource(R.string.player_1_label), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                TextField(
-                    value       = settings.player1.name,
-                    onValueChange = { onSettingsChange(settings.copy(player1 = settings.player1.copy(name = it))) },
-                    label       = { Text(stringResource(R.string.name_label)) },
-                    modifier    = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(stringResource(R.string.piece_color_label), style = MaterialTheme.typography.bodySmall)
-                ColorPicker(
-                    selectedColor  = settings.player1.colorHex,
-                    disabledColors = listOf(settings.player2.colorHex)
-                ) { onSettingsChange(settings.copy(player1 = settings.player1.copy(colorHex = it))) }
-            }
-        }
-
-        if (settings.mode == GameMode.PLAYER_VS_PLAYER) {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(stringResource(R.string.player_2_label), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary)
-                    TextField(
-                        value       = settings.player2.name,
-                        onValueChange = { onSettingsChange(settings.copy(player2 = settings.player2.copy(name = it))) },
-                        label       = { Text(stringResource(R.string.name_label)) },
-                        modifier    = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(stringResource(R.string.piece_color_label), style = MaterialTheme.typography.bodySmall)
-                    ColorPicker(
-                        selectedColor  = settings.player2.colorHex,
-                        disabledColors = listOf(settings.player1.colorHex)
-                    ) { onSettingsChange(settings.copy(player2 = settings.player2.copy(colorHex = it))) }
                 }
-            }
-        } else {
-            Text(stringResource(R.string.ia_ready_label), color = MaterialTheme.colorScheme.secondary)
-            LaunchedEffect(settings.mode) {
-                val newP2 = settings.player2.copy(name = "IA", colorHex = 0xFF000000L)
-                val newP1 = if (settings.player1.colorHex == 0xFF000000L)
-                    settings.player1.copy(colorHex = 0xFFFF0000L) else settings.player1
-                onSettingsChange(settings.copy(player1 = newP1, player2 = newP2))
-            }
-        }
 
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(stringResource(R.string.game_time_label), fontWeight = FontWeight.Bold)
-                TextField(
-                    value       = if (settings.maxTimeMinutes == 0) "" else settings.maxTimeMinutes.toString(),
-                    onValueChange = { v ->
-                        val f = v.filter { it.isDigit() }
-                        onSettingsChange(settings.copy(maxTimeMinutes = if (f.isEmpty()) 0 else f.toInt()))
-                    },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier    = Modifier.fillMaxWidth(),
-                    placeholder = { Text(stringResource(R.string.time_placeholder)) }
-                )
-            }
-        }
+                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                    BackHandler { /* bloquea el retroceso accidental durante la partida */ }
 
-        // (3.1) FIX: Spacer con altura fija en lugar de weight(1f) que rompe el scroll
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Button(
-            onClick  = onStartGame,
-            modifier = Modifier.fillMaxWidth().height(56.dp),
-            enabled  = settings.player1.name.isNotBlank() &&
-                       (settings.mode == GameMode.PLAYER_VS_AI || settings.player2.name.isNotBlank()) &&
-                       settings.maxTimeMinutes > 0
-        ) { Text(stringResource(R.string.btn_start_game)) }
-
-        TextButton(onClick = onBack) { Text(stringResource(R.string.btn_cancel)) }
-
-        Spacer(modifier = Modifier.height(16.dp))
-    }
-}
-
-@Composable
-fun ColorPicker(selectedColor: Long, disabledColors: List<Long>, onColorSelected: (Long) -> Unit) {
-    val colors = listOf(0xFFFF0000L, 0xFF0000FFL, 0xFF00FF00L, 0xFF000000L, 0xFFFFA500L)
-    Row(modifier = Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        colors.forEach { hex ->
-            val isSelected = selectedColor == hex
-            val isDisabled = disabledColors.contains(hex)
-            Box(
-                modifier = Modifier
-                    .size(44.dp).clip(CircleShape)
-                    .background(if (isDisabled) Color.Gray.copy(alpha = 0.2f) else Color(hex))
-                    .border(
-                        width = if (isSelected) 3.dp else 1.dp,
-                        color = if (isSelected) MaterialTheme.colorScheme.primary else if (isDisabled) Color.Transparent else Color.Gray,
-                        shape = CircleShape
-                    )
-                    .clickable(enabled = !isDisabled) { onColorSelected(hex) },
-                contentAlignment = Alignment.Center
-            ) {
-                if (isSelected) Text(
-                    text       = "✓",
-                    color      = if (hex == 0xFF000000L || hex == 0xFF0000FFL) Color.White else Color.Black,
-                    fontSize   = 24.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                    if (!vm.isSettingsLoaded) {
+                        // Breve estado de carga mientras DataStore inicializa
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
+                    } else {
+                        MainGameScreen(
+                            settings            = vm.settings,
+                            board               = vm.board,
+                            currentPlayer       = vm.currentPlayer,
+                            timeLeftSeconds     = vm.timeLeftSeconds,
+                            isAiThinking        = vm.isAiThinking,
+                            winner              = vm.winner,
+                            isTwoPanel          = rememberIsTwoPanel(),
+                            onCellClicked       = { r, c -> vm.onCellClicked(r, c) },
+                            onSurrender         = { vm.surrender() },
+                            onNavigateToResults = { winName, time ->
+                                startActivity(Intent(this, ResultsActivity::class.java).apply {
+                                    putExtra(ResultsActivity.EXTRA_WINNER,      winName)
+                                    putExtra(ResultsActivity.EXTRA_TIME_LEFT,   time)
+                                    putExtra(ResultsActivity.EXTRA_PLAYER1,     vm.settings.player1.name)
+                                    putExtra(ResultsActivity.EXTRA_PLAYER2,     vm.settings.player2.name)
+                                    putExtra(ResultsActivity.EXTRA_LOG,         vm.moveLog.joinToString("\n"))
+                                    putExtra(ResultsActivity.EXTRA_MODE,        vm.settings.mode.name)
+                                    putExtra(ResultsActivity.EXTRA_RED_PIECES,  vm.finalRedPieces)
+                                    putExtra(ResultsActivity.EXTRA_BLACK_PIECES, vm.finalBlackPieces)
+                                })
+                                finish()
+                            }
+                        )
+                    }
+                }
             }
         }
     }
@@ -342,7 +184,8 @@ fun MainGameScreen(
     }
 }
 
-/** Panel lateral de estadísticas para tablet — stateless */
+// ── PANEL LATERAL TABLET ───────────────────────────────────────────────────────
+
 @Composable
 fun GameStatsPanel(
     modifier:        Modifier = Modifier,
@@ -382,8 +225,8 @@ fun GameStatsPanel(
                 Text(stringResource(R.string.ai_thinking_label), style = MaterialTheme.typography.bodySmall)
             }
             HorizontalDivider()
-            Text(stringResource(R.string.pieces_label, settings.player1.name, redCount),   color = Color(settings.player1.colorHex), fontWeight = FontWeight.Medium)
-            Text(stringResource(R.string.pieces_label, settings.player2.name, blackCount),  color = Color(settings.player2.colorHex), fontWeight = FontWeight.Medium)
+            Text(stringResource(R.string.pieces_label, settings.player1.name, redCount),  color = Color(settings.player1.colorHex), fontWeight = FontWeight.Medium)
+            Text(stringResource(R.string.pieces_label, settings.player2.name, blackCount), color = Color(settings.player2.colorHex), fontWeight = FontWeight.Medium)
             Spacer(modifier = Modifier.weight(1f))
             OutlinedButton(
                 onClick  = onSurrender,
@@ -393,6 +236,8 @@ fun GameStatsPanel(
         }
     }
 }
+
+// ── TABLERO ────────────────────────────────────────────────────────────────────
 
 @Composable
 fun CheckersBoard(board: Board, player1Color: Long, player2Color: Long, onCellClicked: (Int, Int) -> Unit) {
@@ -422,6 +267,8 @@ fun CheckersBoard(board: Board, player1Color: Long, player2Color: Long, onCellCl
         }
     }
 }
+
+// ── UTILITAT ───────────────────────────────────────────────────────────────────
 
 fun formatTime(seconds: Long): String {
     val mins = seconds / 60; val secs = seconds % 60

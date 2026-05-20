@@ -80,6 +80,24 @@ object GameRules {
         val pieces = board.flatten().mapNotNull { it.piece }
         if (pieces.none { it.team == Teams.BLACK }) return Teams.RED
         if (pieces.none { it.team == Teams.RED }) return Teams.BLACK
+        if (!hasAnyValidMove(board, Teams.RED)) return Teams.BLACK
+        if (!hasAnyValidMove(board, Teams.BLACK)) return Teams.RED
         return null
+    }
+
+    private fun hasAnyValidMove(board: Array<Array<Cell>>, team: Teams): Boolean {
+        if (hasAnyCapture(board, team)) return true
+        return board.flatten().filter { it.piece?.team == team }.any { cell ->
+            val piece = cell.piece ?: return@any false
+            val forward = if (piece.team == Teams.RED) -1 else 1
+            val range = if (piece.type == PieceType.QUEEN) 1..7 else 1..1
+            listOf(-1, 1).any { dc ->
+                range.any { dist ->
+                    val tr = cell.row + forward * dist
+                    val tc = cell.col + dc * dist
+                    tr in 0..7 && tc in 0..7 && getMoveType(board, cell, tr, tc) is MoveType.Simple
+                }
+            }
+        }
     }
 }

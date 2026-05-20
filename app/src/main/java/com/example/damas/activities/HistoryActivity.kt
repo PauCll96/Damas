@@ -9,8 +9,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -18,7 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.damas.R
-import com.example.damas.data.models.GameResult
+import com.example.damas.data.local.GameRecord
 import com.example.damas.ui.theme.DamasTheme
 import com.example.damas.ui.utils.rememberIsTwoPanel
 import com.example.damas.viewmodels.HistoryViewModel
@@ -29,37 +33,38 @@ class HistoryActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             DamasTheme {
-                // ── STATEFUL ──────────────────────────────────────────────
                 val vm: HistoryViewModel = viewModel()
                 val isTwoPanel = rememberIsTwoPanel()
-
-                // Refresca la lista cada vez que la Activity vuelve al frente
-                vm.refreshHistory()
+                // StateFlow → Compose state; la UI se actualiza automáticamente
+                val gameHistory by vm.games.collectAsState()
 
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     HistoryScreenContent(
-                        gameHistory  = vm.gameHistory,
+                        gameHistory  = gameHistory,
                         selectedGame = vm.selectedGame,
                         isTwoPanel   = isTwoPanel,
                         onGameClick  = { game ->
                             if (isTwoPanel) {
-                                // Tablet: mostrar detalle en el panel derecho
                                 vm.onGameSelected(game)
                             } else {
-                                // Phone: Intent explícito a GameDetailActivity
                                 startActivity(
                                     Intent(this, GameDetailActivity::class.java).apply {
+                                        putExtra(GameDetailActivity.EXTRA_GAME_ID,   game.id)
                                         putExtra(GameDetailActivity.EXTRA_WINNER,    game.winnerName)
                                         putExtra(GameDetailActivity.EXTRA_DATE,      game.date)
                                         putExtra(GameDetailActivity.EXTRA_TIME_LEFT, game.timeLeft)
                                         putExtra(GameDetailActivity.EXTRA_PLAYER1,   game.player1Name)
                                         putExtra(GameDetailActivity.EXTRA_PLAYER2,   game.player2Name)
-                                        putExtra(GameDetailActivity.EXTRA_GAME_ID,   game.id)
+                                        putExtra(GameDetailActivity.EXTRA_MODE,      game.gameMode)
+                                        putExtra(GameDetailActivity.EXTRA_RED_PIECES,   game.redPieces)
+                                        putExtra(GameDetailActivity.EXTRA_BLACK_PIECES, game.blackPieces)
+                                        putExtra(GameDetailActivity.EXTRA_LOG,       game.moveLog)
                                     }
                                 )
                             }
                         },
-                        onBack = { finish() }
+                        onDeleteAll = { vm.deleteAll() },
+                        onBack      = { finish() }
                     )
                 }
             }
@@ -71,17 +76,17 @@ class HistoryActivity : ComponentActivity() {
 
 @Composable
 fun HistoryScreenContent(
-    gameHistory:  List<GameResult>,
-    selectedGame: GameResult?,
+    gameHistory:  List<GameRecord>,
+    selectedGame: GameRecord?,
     isTwoPanel:   Boolean,
-    onGameClick:  (GameResult) -> Unit,
+    onGameClick:  (GameRecord) -> Unit,
+    onDeleteAll:  () -> Unit,
     onBack:       () -> Unit
 ) {
     if (isTwoPanel) {
-        // TABLET: lista izquierda | detalle derecha
         Row(modifier = Modifier.fillMaxSize()) {
             Column(modifier = Modifier.weight(0.4f).fillMaxHeight()) {
-                HistoryTopBar(onBack = onBack)
+                HistoryTopBar(onBack = onBack, onDeleteAll = onDeleteAll)
                 GameHistoryList(
                     gameHistory    = gameHistory,
                     selectedGameId = selectedGame?.id,
@@ -107,9 +112,8 @@ fun HistoryScreenContent(
             }
         }
     } else {
-        // PHONE: solo la lista
         Column(modifier = Modifier.fillMaxSize()) {
-            HistoryTopBar(onBack = onBack)
+            HistoryTopBar(onBack = onBack, onDeleteAll = onDeleteAll)
             GameHistoryList(
                 gameHistory    = gameHistory,
                 selectedGameId = null,
@@ -121,12 +125,15 @@ fun HistoryScreenContent(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HistoryTopBar(onBack: () -> Unit) {
+fun HistoryTopBar(onBack: () -> Unit, onDeleteAll: () -> Unit) {
     TopAppBar(
         title = { Text(stringResource(R.string.history_title)) },
         navigationIcon = {
-            TextButton(onClick = onBack) {
-                Text(stringResource(R.string.btn_back))
+            TextButton(onClick = onBack) { Text(stringResource(R.string.btn_back)) }
+        },
+        actions = {
+            TextButton(onClick = onDeleteAll) {
+                Text(stringResource(R.string.btn_delete_all), color = MaterialTheme.colorScheme.error)
             }
         }
     )
@@ -134,9 +141,9 @@ fun HistoryTopBar(onBack: () -> Unit) {
 
 @Composable
 fun GameHistoryList(
-    gameHistory:    List<GameResult>,
+    gameHistory:    List<GameRecord>,
     selectedGameId: Int?,
-    onGameClick:    (GameResult) -> Unit
+    onGameClick:    (GameRecord) -> Unit
 ) {
     if (gameHistory.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -152,7 +159,7 @@ fun GameHistoryList(
             contentPadding      = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(gameHistory) { game ->
+            items(gameHistory, key = { it.id }) { game ->
                 GameHistoryItem(
                     game       = game,
                     isSelected = game.id == selectedGameId,
@@ -165,7 +172,7 @@ fun GameHistoryList(
 
 @Composable
 fun GameHistoryItem(
-    game:       GameResult,
+    game:       GameRecord,
     isSelected: Boolean,
     onClick:    () -> Unit
 ) {
@@ -182,13 +189,13 @@ fun GameHistoryItem(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text       = stringResource(R.string.game_number_label, game.id + 1),
+                text       = stringResource(R.string.winner_label, game.winnerName),
                 fontWeight = FontWeight.Bold,
                 style      = MaterialTheme.typography.titleMedium
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text  = stringResource(R.string.winner_label, game.winnerName),
+                text  = "${game.player1Name} vs ${game.player2Name}",
                 style = MaterialTheme.typography.bodyMedium
             )
             Text(
@@ -202,18 +209,34 @@ fun GameHistoryItem(
 
 /** Composable de detalle reutilizado en tablet (panel) y en GameDetailActivity (phone) */
 @Composable
-fun GameDetailContent(game: GameResult, modifier: Modifier = Modifier) {
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+fun GameDetailContent(game: GameRecord, modifier: Modifier = Modifier) {
+    Column(
+        modifier            = modifier.verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
         Text(
-            text  = stringResource(R.string.detail_title),
-            style = MaterialTheme.typography.headlineSmall,
+            text       = stringResource(R.string.detail_title),
+            style      = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold
         )
         HorizontalDivider()
-        DetailRow(label = stringResource(R.string.label_date),      value = game.date)
-        DetailRow(label = stringResource(R.string.winner_label_plain), value = game.winnerName)
-        DetailRow(label = stringResource(R.string.label_players),   value = "${game.player1Name} vs ${game.player2Name}")
-        DetailRow(label = stringResource(R.string.label_time_left), value = game.timeLeft)
+        DetailRow(label = stringResource(R.string.label_date),           value = game.date)
+        DetailRow(label = stringResource(R.string.winner_label_plain),   value = game.winnerName)
+        DetailRow(label = stringResource(R.string.label_players),        value = "${game.player1Name} vs ${game.player2Name}")
+        DetailRow(label = stringResource(R.string.label_time_left),      value = game.timeLeft)
+        DetailRow(label = stringResource(R.string.label_game_mode),      value = game.gameMode)
+        DetailRow(label = stringResource(R.string.label_pieces_final),
+            value = "${game.player1Name}: ${game.redPieces}  |  ${game.player2Name}: ${game.blackPieces}")
+        HorizontalDivider()
+        Text(
+            text  = stringResource(R.string.label_log),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Text(
+            text  = game.moveLog.ifBlank { "-" },
+            style = MaterialTheme.typography.bodySmall
+        )
     }
 }
 

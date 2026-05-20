@@ -64,4 +64,15 @@
     <string name="detail_hint">Selecciona una partida per veure\'n els detalls</string>
     <string name="label_players">Jugadors</string>
     <string name="label_time_left">Temps restant</string>
+
+    <!-- Configuració de preferències (persistent DataStore) -->
+    <string name="settings_title">Configuració</string>
+    <string name="btn_settings">Configuració</string>
+    <string name="btn_save">Guardar</string>
+    <string name="player_2_pvp_hint">Sols s\'usa en partides de 2 jugadors (PvP)</string>
+
+    <!-- Historial Room -->
+    <string name="btn_delete_all">Esborrar tot</string>
+    <string name="label_game_mode">Mode de joc</string>
+    <string name="label_pieces_final">Peces finals</string>
 </resources>
