@@ -7,8 +7,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -67,20 +65,6 @@ fun MenuScreen(
     onExitClick:     () -> Unit
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
-        // Icono de ajustes en la esquina superior derecha
-        IconButton(
-            onClick  = onSettingsClick,
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(8.dp)
-        ) {
-            Icon(
-                imageVector        = Icons.Default.Settings,
-                contentDescription = stringResource(R.string.btn_settings),
-                tint               = MaterialTheme.colorScheme.primary
-            )
-        }
-
         Column(
             modifier            = Modifier
                 .fillMaxSize()
