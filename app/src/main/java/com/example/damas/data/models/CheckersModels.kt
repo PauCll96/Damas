@@ -2,26 +2,17 @@ package com.example.damas.data.models
 
 import com.example.damas.data.constants.GameMode
 
-/** Configuración de cada jugador */
+/** Configuración de cada jugador — inmutable, se sustituye con .copy() */
 data class PlayerSettings(
-    var name: String,
-    var colorHex: Long
+    val name: String,
+    val colorHex: Long
 )
 
-/** Configuración global de la partida */
+/** Configuración global de la partida — inmutable, se sustituye con .copy() */
 data class GameSettings(
-    var mode: GameMode = GameMode.PLAYER_VS_PLAYER,
-    var player1: PlayerSettings = PlayerSettings("Jugador 1", 0xFFFF0000), // Rojo
-    var player2: PlayerSettings = PlayerSettings("Jugador 2", 0xFF000000), // Negro
-    var maxTimeMinutes: Int = 10
+    val mode: GameMode = GameMode.PLAYER_VS_PLAYER,
+    val player1: PlayerSettings = PlayerSettings("Jugador 1", 0xFFFF0000),
+    val player2: PlayerSettings = PlayerSettings("Jugador 2", 0xFF000000),
+    val maxTimeMinutes: Int = 10
 )
 
-data class AiMove(
-    val startRow: Int,
-    val startCol: Int,
-    val endRow: Int,
-    val endCol: Int,
-    val captures: List<Pair<Int, Int>> = emptyList()
-)
-
-// GameResult reemplazado por GameRecord (data/local/GameRecord.kt) con persistencia Room

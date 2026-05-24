@@ -1,32 +1,32 @@
 <resources>
-    <string name="app_name">Damas</string>
-    <string name="game_title">Juego de Damas</string>
-    <string name="turn_red">Turno: Rojo</string>
-    <string name="turn_black">Turno: Negro</string>
-    <string name="winner_red">¡Ha ganado el jugador ROJO!</string>
-    <string name="winner_black">¡Ha ganado el jugador NEGRO!</string>
-    
+    <string name="app_name">Dames</string>
+    <string name="game_title">Joc de Dames</string>
+    <string name="turn_red">Torn: Vermell</string>
+    <string name="turn_black">Torn: Negre</string>
+    <string name="winner_red">Ha guanyat el jugador VERMELL!</string>
+    <string name="winner_black">Ha guanyat el jugador NEGRE!</string>
+
     <!-- Pantalla de Menú -->
-    <string name="menu_title">DAMAS</string>
+    <string name="menu_title">DAMES</string>
     <string name="btn_play">Partida Local (PvP)</string>
     <string name="btn_play_ai">Partida vs IA</string>
-    <string name="btn_help">Ayuda</string>
+    <string name="btn_help">Ajuda</string>
 
-    <!-- Pantalla de Resultados -->
-    <string name="results_title">RESULTADOS PARTIDA</string>
-    <string name="help_title">Ayuda</string>
-    <string name="help_content">Bienvenido al juego de Damas.\n\nReglas básicas:\n1. El movimiento es diagonal.\n2. Se captura saltando sobre la pieza contraria.\n3. Si llegas al extremo opuesto, te conviertes en Reina.</string>
-    <string name="btn_back">Volver</string>
-    <string name="label_date">Día y hora</string>
-    <string name="label_log">Valores del Log</string>
-    <string name="label_email">E-mail destinatario</string>
+    <!-- Pantalla de Resultats -->
+    <string name="results_title">RESULTATS PARTIDA</string>
+    <string name="help_title">Ajuda</string>
+    <string name="help_content">Benvingut al joc de Dames.\n\nRegles bàsiques:\n1. El moviment és diagonal.\n2. Es captura saltant per sobre de la peça contrària.\n3. Si arribes a l\'extrem oposat, et converteixes en Reina.</string>
+    <string name="btn_back">Tornar</string>
+    <string name="label_date">Dia i hora</string>
+    <string name="label_log">Valors del Log</string>
+    <string name="label_email">E-mail destinatari</string>
     <string name="btn_send_email">Enviar e-mail</string>
-    <string name="btn_new_game">Nueva partida</string>
-    <string name="btn_exit">Salir</string>
+    <string name="btn_new_game">Nova partida</string>
+    <string name="btn_exit">Sortir</string>
     <string name="default_email"></string>
-    <string name="log_template">Alias: Jugador Tamaño tablero: 8x8 Ganador: %s</string>
+    <string name="log_template">Àlies: Jugador Mida tauler: 8x8 Guanyador: %s</string>
 
-    <!-- Pantalla de Configuración -->
+    <!-- Pantalla de Configuració -->
     <string name="setup_title">Configuració de Partida</string>
     <string name="player_1_label">Jugador 1</string>
     <string name="player_2_label">Jugador 2</string>
@@ -38,18 +38,18 @@
     <string name="btn_start_game">▶  COMENÇAR PARTIDA!</string>
     <string name="btn_cancel">Cancel·lar</string>
 
-    <!-- Pantalla de Juego -->
+    <!-- Pantalla de Joc -->
     <string name="game_screen_title">Dames</string>
     <string name="turn_label">Torn de: %s</string>
     <string name="time_remaining_label">Temps restant: %s</string>
     <string name="btn_surrender">Rendir-se</string>
-    <!-- (1.11) Puntuació visible durant la partida -->
-    <string name="pieces_score_label">%s: %d  |  %s: %d</string>
+    <string name="pieces_score_label">%1$s: %2$d  |  %3$s: %4$d</string>
 
-    <!-- Panel de estadísticas (tablet bi-panel) -->
+    <!-- Panel d\'estadístiques (bi-panel tablet) -->
     <string name="stats_panel_title">Estadístiques</string>
     <string name="ai_thinking_label">La IA està pensant…</string>
-    <string name="pieces_label">%s: %d peces</string>
+    <string name="pieces_label">%1$s: %2$d peces</string>
+    <string name="log_panel_title">Registre de moviments</string>
 
     <!-- Historial de partides -->
     <string name="btn_history">Historial de Partides</string>
@@ -65,14 +65,33 @@
     <string name="label_players">Jugadors</string>
     <string name="label_time_left">Temps restant</string>
 
-    <!-- Configuració de preferències (persistent DataStore) -->
+    <!-- Configuració de preferències -->
     <string name="settings_title">Configuració</string>
     <string name="btn_settings">Configuració</string>
-    <string name="btn_save">Guardar</string>
-    <string name="player_2_pvp_hint">Sols s\'usa en partides de 2 jugadors (PvP)</string>
+    <string name="btn_save">Desar</string>
+    <string name="player_2_pvp_hint">Només s\'usa en partides de 2 jugadors (PvP)</string>
 
     <!-- Historial Room -->
     <string name="btn_delete_all">Esborrar tot</string>
     <string name="label_game_mode">Mode de joc</string>
     <string name="label_pieces_final">Peces finals</string>
+
+    <!-- Diàlegs de confirmació -->
+    <string name="surrender_dialog_title">Rendir-se?</string>
+    <string name="surrender_dialog_msg">Si abandones, %s perdrà la partida. Segur que vols continuar?</string>
+    <string name="surrender_dialog_confirm">Sí, rendir-se</string>
+    <string name="surrender_dialog_cancel">Continuar jugant</string>
+    <string name="delete_all_dialog_title">Esborrar tot l\'historial?</string>
+    <string name="delete_all_dialog_msg">Aquesta acció eliminarà totes les partides desades. No es pot desfer.</string>
+
+    <!-- Colors (accessibilitat) -->
+    <string name="color_red">vermell</string>
+    <string name="color_blue">blau</string>
+    <string name="color_green">verd</string>
+    <string name="color_black">negre</string>
+    <string name="color_orange">taronja</string>
+
+    <!-- Content descriptions per a accessibilitat (TalkBack) -->
+    <string name="cd_color_option">Color %s</string>
+    <string name="cd_board">Tauler de dames 8 per 8</string>
 </resources>

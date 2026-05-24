@@ -1,9 +1,5 @@
-package com.example.damas.activities
+package com.example.damas.ui.screens
 
-import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -19,6 +15,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -26,34 +24,12 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.damas.R
 import com.example.damas.data.models.GameSettings
-import com.example.damas.ui.theme.DamasTheme
 import com.example.damas.viewmodels.SettingsViewModel
-
-class SettingsActivity : ComponentActivity() {
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        // (3.4) setContent delega al composable raíz — sin lógica inline
-        setContent {
-            DamasTheme {
-                val vm: SettingsViewModel = viewModel()
-                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    SettingsScreen(
-                        vm     = vm,
-                        onBack = { finish() }
-                    )
-                }
-            }
-        }
-    }
-}
-
-// ── PANTALLA DE CONFIGURACIÓ ──────────────────────────────────────────────────
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(vm: SettingsViewModel, onBack: () -> Unit) {
+fun SettingsScreen(onBack: () -> Unit) {
+    val vm: SettingsViewModel = viewModel()
 
     fun saveAndClose() { vm.save(); onBack() }
 
@@ -74,7 +50,6 @@ fun SettingsScreen(vm: SettingsViewModel, onBack: () -> Unit) {
             )
         }
     ) { innerPadding ->
-        // (3.1) verticalScroll para que funcione en landscape y con teclado abierto
         Column(
             modifier            = Modifier
                 .fillMaxSize()
@@ -106,8 +81,6 @@ fun SettingsScreen(vm: SettingsViewModel, onBack: () -> Unit) {
         }
     }
 }
-
-// ── TARJETES DE CONFIGURACIÓ (2.4) ────────────────────────────────────────────
 
 @Composable
 private fun SettingsPlayer1Card(settings: GameSettings, onSettingsChange: (GameSettings) -> Unit) {
@@ -184,12 +157,10 @@ private fun SettingsTimeCard(settings: GameSettings, onSettingsChange: (GameSett
     }
 }
 
-// ── COLOR PICKER ───────────────────────────────────────────────────────────────
-
 @Composable
-fun PreferencesColorPicker(
-    selectedColor:  Long,
-    disabledColors: List<Long>,
+private fun PreferencesColorPicker(
+    selectedColor:   Long,
+    disabledColors:  List<Long>,
     onColorSelected: (Long) -> Unit
 ) {
     val colors = listOf(0xFFFF0000L, 0xFF0000FFL, 0xFF00FF00L, 0xFF000000L, 0xFFFFA500L)
@@ -197,6 +168,15 @@ fun PreferencesColorPicker(
         colors.forEach { hex ->
             val isSelected = selectedColor == hex
             val isDisabled = disabledColors.contains(hex)
+            val colorName = when (hex) {
+                0xFFFF0000L -> stringResource(R.string.color_red)
+                0xFF0000FFL -> stringResource(R.string.color_blue)
+                0xFF00FF00L -> stringResource(R.string.color_green)
+                0xFF000000L -> stringResource(R.string.color_black)
+                0xFFFFA500L -> stringResource(R.string.color_orange)
+                else        -> ""
+            }
+            val desc = stringResource(R.string.cd_color_option, colorName)
             Box(
                 modifier = Modifier
                     .size(44.dp)
@@ -211,7 +191,8 @@ fun PreferencesColorPicker(
                         },
                         shape = CircleShape
                     )
-                    .clickable(enabled = !isDisabled) { onColorSelected(hex) },
+                    .clickable(enabled = !isDisabled) { onColorSelected(hex) }
+                    .semantics { contentDescription = desc },
                 contentAlignment = Alignment.Center
             ) {
                 if (isSelected) Text(

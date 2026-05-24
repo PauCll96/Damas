@@ -10,10 +10,13 @@ import kotlinx.coroutines.flow.Flow
 interface GameRecordDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(record: GameRecord)
+    suspend fun insert(record: GameRecord): Long
 
     @Query("SELECT * FROM game_records ORDER BY id DESC")
     fun getAllOrderedByDate(): Flow<List<GameRecord>>
+
+    @Query("SELECT * FROM game_records WHERE id = :id LIMIT 1")
+    suspend fun getById(id: Int): GameRecord?
 
     @Query("DELETE FROM game_records WHERE id = :id")
     suspend fun deleteById(id: Int)

@@ -9,7 +9,9 @@ class GameRecordRepository private constructor(context: Context) {
 
     val allGames: Flow<List<GameRecord>> = dao.getAllOrderedByDate()
 
-    suspend fun insert(record: GameRecord) = dao.insert(record)
+    suspend fun insert(record: GameRecord): Long = dao.insert(record)
+
+    suspend fun getById(id: Int): GameRecord? = dao.getById(id)
 
     suspend fun deleteById(id: Int) = dao.deleteById(id)
 

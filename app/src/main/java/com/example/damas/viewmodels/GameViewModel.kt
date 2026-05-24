@@ -11,14 +11,24 @@ import com.example.damas.data.constants.PieceType
 import com.example.damas.data.constants.Teams
 import com.example.damas.data.local.*
 import com.example.damas.data.models.*
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 // (2.13) AndroidViewModel para acceder al contexto de aplicación (DataStore)
 class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = UserPreferencesRepository.getInstance(application)
+    private val recordRepository = GameRecordRepository.getInstance(application)
+
+    /** Id del GameRecord persistido en Room al terminar la partida — observado por la pantalla
+     *  para navegar a results/{id}. null mientras la partida sigue en curso. */
+    var savedGameId by mutableStateOf<Int?>(null)
+        private set
 
     // --- CONFIGURACIÓN ---
     var settings by mutableStateOf(GameSettings())
@@ -61,21 +71,23 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     val aiColor = Teams.BLACK
 
+    /**
+     * Job del temporizador — se crea en [startGame] y se cancela en
+     * [stopTimer] cuando alguien gana o se agota el tiempo. Antes había un
+     * `while(true)` infinito que vivía hasta que el ViewModel se destruía;
+     * ahora se cancela en cuanto deja de tener sentido contar.
+     */
+    private var timerJob: Job? = null
+
     init {
-        // Cargar preferencias persistidas antes de arrancar
+        // Snapshot inicial: leemos las preferencias EN EL MOMENTO de crear el
+        // ViewModel. Durante una partida no queremos que los cambios en
+        // DataStore alteren los colores ni el tiempo máximo — por eso `first()`
+        // es la primitiva correcta aquí (y no `collect`/`stateIn`).
         viewModelScope.launch {
             val saved = repository.settingsFlow.first()
             settings = saved
             isSettingsLoaded = true
-        }
-        // Temporizador de partida
-        viewModelScope.launch {
-            while (true) {
-                delay(1000)
-                if (winner == null && isGameStarted) {
-                    if (timeLeftSeconds > 0) timeLeftSeconds-- else onTimeUp()
-                }
-            }
         }
     }
 
@@ -105,6 +117,29 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         activeMultiCapturePiece = null
         isGameStarted        = true
         moveLog              = listOf("▶ Partida iniciada — Torn de: ${settings.player1.name}")
+        startTimer()
+    }
+
+    /**
+     * Arranca un Job que decrementa [timeLeftSeconds] cada segundo y se cancela
+     * solo cuando llega a 0 o cuando otra ruta de fin de partida llame a
+     * [stopTimer]. Sustituye al antiguo `while(true)` que se quedaba vivo
+     * incluso después de terminar la partida.
+     */
+    private fun startTimer() {
+        timerJob?.cancel()
+        timerJob = viewModelScope.launch {
+            while (timeLeftSeconds > 0 && winner == null) {
+                delay(1000)
+                if (winner == null) timeLeftSeconds--
+            }
+            if (winner == null && timeLeftSeconds <= 0L && isGameStarted) onTimeUp()
+        }
+    }
+
+    private fun stopTimer() {
+        timerJob?.cancel()
+        timerJob = null
     }
 
     fun resetToMenu() {
@@ -112,9 +147,16 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun surrender() {
+        if (winner != null) return
         val loserName = playerName(currentPlayer)
         winner = if (currentPlayer == Teams.RED) Teams.BLACK else Teams.RED
+        // Contabilizar piezas restantes al rendirse
+        val pieces     = board.flatten().mapNotNull { it.piece }
+        finalRedPieces   = pieces.count { it.team == Teams.RED }
+        finalBlackPieces = pieces.count { it.team == Teams.BLACK }
         logEvent("🏳 $loserName es va rendir. Guanyador: ${playerName(winner!!)}")
+        stopTimer()
+        persistResultOnce()
     }
 
     // ── INTERACCIÓ ────────────────────────────────────────────────────────────
@@ -216,6 +258,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             finalRedPieces   = redCount
             finalBlackPieces = blackCount
             logEvent("🏆 Guanyador: ${playerName(w)} — ${settings.player1.name}: $redCount peces, ${settings.player2.name}: $blackCount peces")
+            stopTimer()
+            persistResultOnce()
         }
     }
 
@@ -234,10 +278,47 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
         if (winner != null) {
             logEvent("🏆 Guanyador per peces: ${playerName(winner!!)}")
+            stopTimer()
+            persistResultOnce()
         } else {
             isGameStarted = false
+            stopTimer()
             logEvent("Empat — mateixes peces restants")
         }
+    }
+
+    // ── PERSISTENCIA EN ROOM ─────────────────────────────────────────────────
+    /**
+     * Inserta el GameRecord final en Room exactamente una vez por partida.
+     * Antes esto vivía en ResultsActivity con un CoroutineScope(Dispatchers.IO).launch
+     * suelto — ahora es una función del ViewModel ligada a viewModelScope y se ejecuta
+     * en el mismo punto en el que se descubre al ganador.
+     */
+    private fun persistResultOnce() {
+        if (savedGameId != null) return
+        val w = winner ?: return
+        val winnerName = playerName(w)
+        val date       = SimpleDateFormat("dd/MM/yy, HH:mm", Locale.getDefault()).format(Date())
+        val record = GameRecord(
+            date        = date,
+            player1Name = settings.player1.name,
+            player2Name = settings.player2.name,
+            winnerName  = winnerName,
+            gameMode    = settings.mode.name,
+            timeLeft    = formatTimeSeconds(timeLeftSeconds),
+            redPieces   = finalRedPieces,
+            blackPieces = finalBlackPieces,
+            moveLog     = moveLog.joinToString("\n")
+        )
+        viewModelScope.launch {
+            val id = recordRepository.insert(record).toInt()
+            savedGameId = id
+        }
+    }
+
+    private fun formatTimeSeconds(secs: Long): String {
+        val m = secs / 60; val s = secs % 60
+        return "%02d:%02d".format(m, s)
     }
 
     // ── IA ─────────────────────────────────────────────────────────────────────
@@ -263,8 +344,13 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
                 else -> {
+                    val pieces = board.flatten().mapNotNull { it.piece }
+                    finalRedPieces   = pieces.count { it.team == Teams.RED }
+                    finalBlackPieces = pieces.count { it.team == Teams.BLACK }
                     winner = Teams.RED
                     logEvent("🏆 IA sense moviments. Guanyador: ${playerName(Teams.RED)}")
+                    stopTimer()
+                    persistResultOnce()
                 }
             }
             isAiThinking = false

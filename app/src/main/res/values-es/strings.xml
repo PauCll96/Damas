@@ -1,0 +1,97 @@
+<resources>
+    <string name="app_name">Damas</string>
+    <string name="game_title">Juego de Damas</string>
+    <string name="turn_red">Turno: Rojo</string>
+    <string name="turn_black">Turno: Negro</string>
+    <string name="winner_red">¡Ha ganado el jugador ROJO!</string>
+    <string name="winner_black">¡Ha ganado el jugador NEGRO!</string>
+
+    <!-- Pantalla de Menú -->
+    <string name="menu_title">DAMAS</string>
+    <string name="btn_play">Partida Local (PvP)</string>
+    <string name="btn_play_ai">Partida vs IA</string>
+    <string name="btn_help">Ayuda</string>
+
+    <!-- Pantalla de Resultados -->
+    <string name="results_title">RESULTADOS PARTIDA</string>
+    <string name="help_title">Ayuda</string>
+    <string name="help_content">Bienvenido al juego de Damas.\n\nReglas básicas:\n1. El movimiento es diagonal.\n2. Se captura saltando sobre la pieza contraria.\n3. Si llegas al extremo opuesto, te conviertes en Reina.</string>
+    <string name="btn_back">Volver</string>
+    <string name="label_date">Día y hora</string>
+    <string name="label_log">Valores del Log</string>
+    <string name="label_email">E-mail destinatario</string>
+    <string name="btn_send_email">Enviar e-mail</string>
+    <string name="btn_new_game">Nueva partida</string>
+    <string name="btn_exit">Salir</string>
+    <string name="default_email"></string>
+    <string name="log_template">Alias: Jugador Tamaño tablero: 8x8 Ganador: %s</string>
+
+    <!-- Pantalla de Configuración -->
+    <string name="setup_title">Configuración de Partida</string>
+    <string name="player_1_label">Jugador 1</string>
+    <string name="player_2_label">Jugador 2</string>
+    <string name="name_label">Nombre</string>
+    <string name="piece_color_label">Color de fichas:</string>
+    <string name="ia_ready_label">IA lista para jugar (Color: Negro)</string>
+    <string name="game_time_label">Tiempo de partida (minutos)</string>
+    <string name="time_placeholder">Ej: 10</string>
+    <string name="btn_start_game">▶  ¡COMENZAR PARTIDA!</string>
+    <string name="btn_cancel">Cancelar</string>
+
+    <!-- Pantalla de Juego -->
+    <string name="game_screen_title">Damas</string>
+    <string name="turn_label">Turno de: %s</string>
+    <string name="time_remaining_label">Tiempo restante: %s</string>
+    <string name="btn_surrender">Rendirse</string>
+    <string name="pieces_score_label">%1$s: %2$d  |  %3$s: %4$d</string>
+
+    <!-- Panel de estadísticas (bi-panel tablet) -->
+    <string name="stats_panel_title">Estadísticas</string>
+    <string name="ai_thinking_label">La IA está pensando…</string>
+    <string name="pieces_label">%1$s: %2$d piezas</string>
+    <string name="log_panel_title">Registro de movimientos</string>
+
+    <!-- Historial de partidas -->
+    <string name="btn_history">Historial de Partidas</string>
+    <string name="history_title">Historial</string>
+    <string name="history_empty">No hay partidas registradas</string>
+    <string name="game_number_label">Partida #%d</string>
+    <string name="winner_label">Ganador: %s</string>
+    <string name="winner_label_plain">Ganador</string>
+
+    <!-- Detalle de partida -->
+    <string name="detail_title">Detalle de la Partida</string>
+    <string name="detail_hint">Selecciona una partida para ver sus detalles</string>
+    <string name="label_players">Jugadores</string>
+    <string name="label_time_left">Tiempo restante</string>
+
+    <!-- Configuración de preferencias -->
+    <string name="settings_title">Configuración</string>
+    <string name="btn_settings">Configuración</string>
+    <string name="btn_save">Guardar</string>
+    <string name="player_2_pvp_hint">Sólo se usa en partidas de 2 jugadores (PvP)</string>
+
+    <!-- Historial Room -->
+    <string name="btn_delete_all">Borrar todo</string>
+    <string name="label_game_mode">Modo de juego</string>
+    <string name="label_pieces_final">Piezas finales</string>
+
+    <!-- Diálogos de confirmación -->
+    <string name="surrender_dialog_title">¿Rendirse?</string>
+    <string name="surrender_dialog_msg">Si abandonas, %s perderá la partida. ¿Seguro que quieres continuar?</string>
+    <string name="surrender_dialog_confirm">Sí, rendirse</string>
+    <string name="surrender_dialog_cancel">Seguir jugando</string>
+    <string name="delete_all_dialog_title">¿Borrar todo el historial?</string>
+    <string name="delete_all_dialog_msg">Esta acción eliminará todas las partidas guardadas. No se puede deshacer.</string>
+
+    <!-- Colores (accesibilidad) -->
+    <string name="color_red">rojo</string>
+    <string name="color_blue">azul</string>
+    <string name="color_green">verde</string>
+    <string name="color_black">negro</string>
+    <string name="color_orange">naranja</string>
+
+    <!-- Content descriptions para accesibilidad (TalkBack) -->
+    <string name="cd_color_option">Color %s</string>
+    <string name="cd_board">Tablero de damas 8 por 8</string>
+</resources>
